@@ -98,17 +98,6 @@ def run(data, output, work):
             path = work / table / "*.csv"
             execute(f"create view raw_{table} as select * from " + relation(path, fields))
 
-    execute("""
-        create macro millis(s) as case
-          when regexp_full_match(s, '[0-9]+') then try_cast(coalesce(nullif(ltrim(s, '0'), ''), '0') as bigint)
-          when regexp_full_match(s, '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-5][0-9]:[0-5][0-9](Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])')
-            and substring(s,12,2) < '24' then
-              epoch_ms(try_strptime(left(s,19), '%Y-%m-%dT%H:%M:%S')) -
-              case when length(s)=20 then 0 else
-                (case when substring(s,20,1)='-' then -1 else 1 end) *
-                (try_cast(substring(s,21,2) as int)*60 + try_cast(right(s,2) as int))*60000 end
-        end
-    """)
     with stage("event dedup and validation"):
         execute("create table valid(person varchar, t bigint, cents integer, category varchar)")
         for shard in range(shards):
@@ -146,27 +135,29 @@ def run(data, output, work):
         from sessions left join categories using(person, day) group by person,day;
         """)
     with stage("clicks and attribution"):
-        execute(f"""
-        create table clicks as select distinct cid, coalesce(person,uid) as person, campaign, millis(ts) as t
-        from raw_clicks join raw_campaigns using(campaign) left join people using(uid)
-        where cid is not null and uid is not null and millis(ts)>={start - 604800000} and millis(ts)<{end};
-        create table matches as select s.person, s.begin_ms, c.campaign,
-          first(cid order by t desc, cid) as cid, max(t) as t
-        from sessions s join clicks c on s.person=c.person and c.t between s.begin_ms-604800000 and s.begin_ms
-        group by s.person, s.begin_ms, c.campaign;
+        execute("""
+        create table clicks as
+          select coalesce(person,uid) as person, campaign, ts::bigint as t, min(cid) as cid
+          from raw_clicks join raw_campaigns using(campaign) left join people using(uid)
+          group by all;
+        create table matches as
+          select s.person, s.begin_ms, c.campaign, min(struct_pack(neg_t := -t, id := cid)) as priority
+          from sessions s join clicks c on s.person=c.person and c.t between s.begin_ms-604800000 and s.begin_ms
+          group by s.person, s.begin_ms, c.campaign;
         create view campaign_daily as
-        with ranked as (
-          select *, row_number() over(partition by person,begin_ms order by t desc,cid) as rank from matches
-        ), totals as (
-          select coalesce(campaign,'organic') as campaign, day,
-            count(*) filter(where rank=1 or rank is null) as sessions,
-            count(*) filter(where (rank=1 or rank is null) and revenue>0) as purchasing_sessions,
-            sum(case when rank=1 or rank is null then revenue else 0 end)::bigint as revenue_cents,
-            count(rank) as assisted_sessions
-          from sessions left join ranked using(person,begin_ms) group by all
+        with winners as (
+          select person, begin_ms, arg_min(campaign, priority) as campaign from matches group by person,begin_ms
+        ), credited as (
+          select coalesce(campaign,'organic') as campaign, day, count(*) as sessions,
+            count(*) filter(where revenue>0) as purchasing_sessions, sum(revenue)::bigint as revenue_cents
+          from sessions left join winners using(person,begin_ms) group by all
+        ), assists as (
+          select campaign, epoch_ms(begin_ms)::date as day, count(*) as assisted_sessions from matches group by all
         )
-        select campaign as campaign_id, coalesce(channel,'organic') as channel, day, sessions,
-          purchasing_sessions, revenue_cents, assisted_sessions from totals left join raw_campaigns using(campaign)
+        select campaign as campaign_id, coalesce(channel,'organic') as channel, day,
+          coalesce(sessions,0) as sessions, coalesce(purchasing_sessions,0) as purchasing_sessions,
+          coalesce(revenue_cents,0) as revenue_cents, coalesce(assisted_sessions,0) as assisted_sessions
+        from credited full join assists using(campaign,day) left join raw_campaigns using(campaign)
         """)
     with stage("daily outputs"):
         for name in ("user_daily", "campaign_daily"):
@@ -186,8 +177,6 @@ if __name__ == "__main__":
     child = resource.getrusage(resource.RUSAGE_CHILDREN)
     cpu = usage.ru_utime + usage.ru_stime + child.ru_utime + child.ru_stime
     print(f"wall={time.monotonic()-began:.3f}s cpu={cpu:.3f}s peak_rss={usage.ru_maxrss}KiB")
-
-
-
-
-
+    peak = Path("/sys/fs/cgroup/memory.peak")
+    if peak.is_file():
+        print(f"container_peak_bytes={peak.read_text().strip()}")
