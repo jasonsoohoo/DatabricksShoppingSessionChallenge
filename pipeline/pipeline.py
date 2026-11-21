@@ -135,29 +135,28 @@ def run(data, output, work):
         from sessions left join categories using(person, day) group by person,day;
         """)
     with stage("clicks and attribution"):
-        execute("""
-        create table clicks as
-          select coalesce(person,uid) as person, campaign, ts::bigint as t, min(cid) as cid
-          from raw_clicks join raw_campaigns using(campaign) left join people using(uid)
-          group by all;
-        create table matches as
-          select s.person, s.begin_ms, c.campaign, min(struct_pack(neg_t := -t, id := cid)) as priority
-          from sessions s join clicks c on s.person=c.person and c.t between s.begin_ms-604800000 and s.begin_ms
-          group by s.person, s.begin_ms, c.campaign;
-        create view campaign_daily as
-        with winners as (
-          select person, begin_ms, arg_min(campaign, priority) as campaign from matches group by person,begin_ms
-        ), credited as (
-          select coalesce(campaign,'organic') as campaign, day, count(*) as sessions,
-            count(*) filter(where revenue>0) as purchasing_sessions, sum(revenue)::bigint as revenue_cents
-          from sessions left join winners using(person,begin_ms) group by all
-        ), assists as (
-          select campaign, epoch_ms(begin_ms)::date as day, count(*) as assisted_sessions from matches group by all
-        )
-        select campaign as campaign_id, coalesce(channel,'organic') as channel, day,
-          coalesce(sessions,0) as sessions, coalesce(purchasing_sessions,0) as purchasing_sessions,
-          coalesce(revenue_cents,0) as revenue_cents, coalesce(assisted_sessions,0) as assisted_sessions
-        from credited full join assists using(campaign,day) left join raw_campaigns using(campaign)
+        timeline = work / "timeline.csv"
+        totals = work / "totals.csv"
+        execute("create table codes as select *, row_number() over() as code from raw_campaigns")
+        execute("set preserve_insertion_order=true")
+        execute(f"""
+          copy (
+            select person,t,code,revenue from (
+              select coalesce(person,uid) as person, ts::bigint as t, code, 0 as revenue, cid
+              from raw_clicks join codes using(campaign) left join people using(uid)
+              union all
+              select person, begin_ms, 0, revenue, null from sessions
+            ) order by person, t, cid desc nulls last
+          ) to {literal(timeline)} (format csv, header false)
+        """)
+        subprocess.run(["/app/attribute", timeline, totals], check=True)
+        source = relation(totals, "code days sessions purchasing_sessions revenue_cents assisted_sessions")
+        execute(f"""
+          create view campaign_daily as
+          select coalesce(campaign,'organic') as campaign_id, coalesce(channel,'organic') as channel,
+            date '1970-01-01' + days::int as day, sessions::bigint as sessions,
+            purchasing_sessions::bigint as purchasing_sessions, revenue_cents::bigint as revenue_cents,
+            assisted_sessions::bigint as assisted_sessions from {source} left join codes using(code)
         """)
     with stage("daily outputs"):
         for name in ("user_daily", "campaign_daily"):
@@ -180,3 +179,4 @@ if __name__ == "__main__":
     peak = Path("/sys/fs/cgroup/memory.peak")
     if peak.is_file():
         print(f"container_peak_bytes={peak.read_text().strip()}")
+

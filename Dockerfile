@@ -5,7 +5,11 @@ FROM rust:1.85-bookworm AS compiler
 COPY pipeline/clean.rs /tmp/clean.rs
 RUN rustc -O --edition 2024 /tmp/clean.rs -o /clean
 
+COPY pipeline/attribute.rs /tmp/attribute.rs
+RUN rustc -O --edition 2024 /tmp/attribute.rs -o /attribute
+
 FROM python:3.12-slim-bookworm
+COPY --from=compiler /attribute /app/attribute
 COPY --from=compiler /clean /app/clean
 
 # The scorer runs the container as uid 1000; give that uid a name and a home.
@@ -26,5 +30,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 CMD ["/app/run.sh"]
+
 
 
