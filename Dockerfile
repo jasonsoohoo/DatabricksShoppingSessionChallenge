@@ -1,14 +1,14 @@
-# Shopping Sessions starter: DuckDB skeleton.
+# Shopping Sessions build and runtime.
 # The scorers are linux/amd64 (Intel Xeon). They build this file natively, so
 # no FROM line pins a platform: `make build` builds for linux/amd64 anywhere.
-FROM rust:1.85-bookworm AS compiler
+FROM rust:1.85-bookworm@sha256:e51d0265072d2d9d5d320f6a44dde6b9ef13653b035098febd68cce8fa7c0bc4 AS compiler
 COPY pipeline/clean.rs /tmp/clean.rs
 RUN rustc -O --edition 2024 /tmp/clean.rs -o /clean
 
 COPY pipeline/attribute.rs /tmp/attribute.rs
 RUN rustc -O --edition 2024 /tmp/attribute.rs -o /attribute
 
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df
 COPY --from=compiler /attribute /app/attribute
 COPY --from=compiler /clean /app/clean
 
@@ -30,6 +30,3 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 CMD ["/app/run.sh"]
-
-
-

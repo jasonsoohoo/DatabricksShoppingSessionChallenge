@@ -1,83 +1,39 @@
-# Shopping Sessions: DuckDB starter
+# Shopping Sessions
 
-This repository is a working skeleton, not a complete solution. It builds a `linux/amd64` image with DuckDB, runs inside the scorer's container limits, reads the inputs, and writes both output tables with the right schema. Both tables are empty, so the checker marks this skeleton incorrect until you implement the rules in `rules.md`.
+The scorer builds the root Dockerfile and runs its default command. Development uses PowerShell 7 and Docker Desktop in Linux container mode. The production image contains DuckDB 1.5.6. The separate validator image contains Polars 2.1.0.
 
-If this starter and `rules.md` ever disagree, `rules.md` wins. Ask the organizers if `rules.md` leaves you unsure.
+## Restore local materials
 
-## What to do first
+Run in the repository root with the supplied archives in Downloads. These commands create inputs for development on a fresh checkout.
 
-- Read `rules.md` for the full rules.
-- Write your pipeline in `pipeline/pipeline.py`. The TODO lists the steps in order.
-- Build the image and test against all 36 edge-case fixtures and the 1M-event dev set before submitting.
-
-## Run and test locally
-
-You need Docker with buildx, and Python 3.10+ with `polars` for the test scripts. Install it with `pip install polars`.
-
-Build the image and run all 36 fixtures:
-
-```sh
-make build        # docker buildx build --platform linux/amd64 --load -t shopping-sessions:latest .
-make fixtures     # runs the image on all 36 fixtures with scorer flags, diffs each against expected/
+```powershell
+New-Item -Force -ItemType Directory .local
+tar -xf "$HOME/Downloads/generator.zip" -C .local
+tar -xf "$HOME/Downloads/dev-answer.zip"
+tar -xf "$HOME/Downloads/starter-duckdb.zip" --strip-components 1 starter-duckdb/fixtures
+$local = (Resolve-Path .local).Path
+docker run --rm --cpus 4 --memory 4g -v "${local}:/work" -w /work/generator rust:1.85-bookworm sh -ec 'cargo build --release --offline && target/release/generate --threads 4 --seed 1 --events 1000000 --clicks 250000 --output /work/dev && target/release/generate --threads 4 --seed 7 --events 100000 --clicks 25000 --output /work/small'
 ```
 
-Build, run, and check the 1M-event dev set. `make dev` needs `generate` on your PATH: build it from the track page's generator.zip (Rust 1.85 or newer; its README has the two commands).
+## Build, test and benchmark
 
-```sh
-make dev                                # generate --seed 1 --events 1000000 --clicks 250000 --output dev
-make run-dev                            # runs your image on dev/ with scorer flags and times it
-make check-dev                          # exact diff against dev-answer/, the track page's dev-answer.zip unzipped here
+```powershell
+./scripts/local.ps1 build
+./scripts/local.ps1 fixtures
+./scripts/local.ps1 dev
+./scripts/local.ps1 compare
+./scripts/local.ps1 small
 ```
 
-If your laptop cannot spare 8 cores and 24 GB, run with lower limits using `make run-dev CPUS=4 MEM=8g`. Your local times will not match the scorer anyway; only the board's times count.
+The dev comparison checks both Parquet schemas, row membership and unique keys against the published CSVs. Fixtures invoke the production entry point in the checker image. Benchmarks invoke the production image directly. The optional second argument labels each output directory, e.g. use the same label for dev and compare. Use a fresh label for an independent run.
 
-- **x86 Linux and Windows machines.** Build and run the amd64 image natively.
-- **Apple-silicon Macs.** Emulating amd64 is slow. For fast local loops, build a native image with `make build run-dev PLATFORM=linux/arm64`. The Dockerfile pins no platform, so it builds either way. Check the amd64 image before you submit.
+For the large benchmarks, generate input into dedicated Docker volumes once. The named volumes keep large input reads on the Linux filesystem.
 
-To iterate without Docker:
-
-```sh
-pip install duckdb==1.5.6
-python3 scripts/run_fixtures.py fixtures -- python3 pipeline/pipeline.py
+```powershell
+$bin = (Resolve-Path .local/generator/target/release).Path
+docker run --rm --cpus 4 --memory 10g -v "${bin}:/bin-gen:ro" -v shopping-buildathon-practice:/practice -v shopping-buildathon-final:/final rust:1.85-bookworm sh -ec '/bin-gen/generate --threads 4 --seed 23 --events 20000000 --clicks 5000000 --output /practice && /bin-gen/generate --threads 4 --seed 42 --events 60000000 --clicks 15000000 --output /final'
+./scripts/local.ps1 practice
+./scripts/local.ps1 final
 ```
 
-## Submitting and scoring
-
-Submit your public GitHub repository on the Buildathon track page. Enter a commit SHA to score a specific revision, or leave it empty to score the newest commit on the default branch.
-
-The image's `CMD` runs with no arguments. Exit code 0 means "done, check my output". Build time is never timed; only the run is timed. The track page lists the current practice limits and how the final is scored.
-
-## Container limits
-
-Scorers are Google Cloud n2 Intel Xeon machines, Cascade Lake or newer, with AVX-512 available. Your container gets:
-
-| Resource | Setting |
-| --- | --- |
-| `/data` | The dataset, read-only |
-| `/output` | Empty, writable. Write `/output/user_daily/` and `/output/campaign_daily/` as Parquet |
-| `/scratch` | Empty, writable, fast local disk for spills and temp files |
-| CPU / RAM | 8 vCPUs, hyperthreads of an Intel Xeon, 24 GB, no swap |
-| Network | None |
-| Env vars | `DATA_DIR=/data`, `OUTPUT_DIR=/output`, `SCRATCH_DIR=/scratch`, `HOME=/scratch`, `NCPU=8`, `MEM_GB=24` |
-| Filesystem | Root is read-only apart from `/tmp`, 64 MB in memory. The process runs as uid 1000, not root |
-
-## Common pitfalls
-
-- **DuckDB's CSV reader differs from `rules.md`.** It reads a quoted empty field `""` as an empty string, not null. Its malformed-line handling, including `ignore_errors`, `strict_mode`, and `null_padding`, does not match `rules.md`. Test against the fixtures before relying on it.
-- **Memory.** `pipeline.py` sets `memory_limit` to 80% of `MEM_GB` and `temp_directory` under `/scratch`, so big joins and sorts spill to disk instead of getting the container killed.
-- **No extension downloads.** The container has no network at run time. Parquet and CSV are built into the wheel; anything else must be installed at build time.
-- **`\d` is not `[0-9]`.** In several regex engines, including Rust's used by Polars, `\d` matches any Unicode digit. The rules mean ASCII digits only.
-- **Extra files in output folders.** `_SUCCESS` and other non-Parquet files in the output folders are ignored.
-
-## Self-checks
-
-- Summed over all rows, `sessions` and `revenue_cents` are equal in both tables.
-- `day` must be a Parquet `DATE`, not a string or timestamp.
-- Row order and the number of Parquet files do not matter. Exact column names do, and there must be no extra columns.
-
-## Files in this starter
-
-- `pipeline/pipeline.py` holds your pipeline code.
-- `Dockerfile` builds a `linux/amd64` image for the Intel Xeon scorers.
-- `fixtures/` holds the 36 edge cases, each an `input/` folder and the `expected/` tables. In this monorepo they live in `../../fixtures`; copy them in when publishing the starter as its own repo.
-- `scripts/` runs your image the way the scorer does and diffs the output.
+The official POSIX Makefile and Docker wrapper are also included. For current candidate hashes, measured results and manual hand-in, see [submissions](docs/SUBMISSIONS.md). Project progress is in [the roadmap](docs/ROADMAP.md).

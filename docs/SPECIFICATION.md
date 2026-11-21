@@ -132,3 +132,13 @@ The dirt. A rate given as a range is drawn per seed from it; a single rate is th
 | Quoted fields    | 20% of fields                      | Random fields wrapped in double quotes                                                                               |
 | Malformed lines  | 0.05%, links too                   | Wrong field count, unbalanced quotes, an empty ID, empty lines                                                       |
 
+
+## Scorer and hand-in
+
+The [official track](https://www.joinbuilders.org/buildathon/tracks/shopping-sessions) lists scorer shopping-sessions-4. Submit a public GitHub repository (50 MB maximum, no datasets) with a root Dockerfile and a recoverable commit. Keep submitted commits accessible through publication of results. Team limit is two submissions per hour.
+
+The network-enabled build has ten minutes. The Linux AMD64 image must fit in 8 GB. Runtime gets eight pinned Xeon hyperthreads, 24 GB RAM, zero swap, no network, uid 1000, a read-only root and 64 MB tmpfs. Combined scratch and output limit is 50 GB. Entry command receives no arguments.
+
+Correct dev output is required within 180 seconds. Practice uses roughly 20M events with a time ceiling of the lesser of 2× baseline and 300 seconds (current baseline 172 s). Runs below 20 s trigger three timings, median scored. Ties favor earlier submissions. Incorrect output, resource exhaustion or excessive logs invalidate the run.
+
+Cutoff is Sunday, November 22, 2026 at 16:00 UTC (8:00 a.m. Pacific). The final uses roughly 60M fresh events, three timed runs with a 180 s limit on each. The median is the score. At least the fastest ten are retimed seven times on an idle machine. No official hidden data or scores are available locally.
