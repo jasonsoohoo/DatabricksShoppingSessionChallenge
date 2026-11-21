@@ -78,14 +78,18 @@ def run(data, output, work):
         "temp_directory": str(work / "spill"),
         "preserve_insertion_order": "false",
     })
+    manifest = json.loads((data / "manifest.json").read_text())
+    start, end = [int(datetime.fromisoformat(manifest[k]).timestamp()) * 1000
+                  for k in ("window_start", "window_end")]
     execute = con.execute
     with stage("csv and identity"):
         path = work / "people.csv"
         canonical_file(path, (a + b"," + b for a, b in identities(data)))
         execute("create table people as select * from " + relation(path, "uid person"))
-        subprocess.run(["/app/clean", data, work], check=True)
+        subprocess.run(["/app/clean", data, work], check=True,
+                       env=dict(os.environ, WINDOW_START=str(start), WINDOW_END=str(end)))
         for table, fields in {
-            "events": "eid uid ts ingest kind product price",
+            "events": "eid ingest uid ts price product",
             "clicks": "cid uid campaign ts",
             "products": "product category",
             "campaigns": "campaign channel",
@@ -93,9 +97,6 @@ def run(data, output, work):
             path = work / table / "*.csv"
             execute(f"create view raw_{table} as select * from " + relation(path, fields))
 
-    manifest = json.loads((data / "manifest.json").read_text())
-    start, end = [int(datetime.fromisoformat(manifest[k]).timestamp()) * 1000
-                  for k in ("window_start", "window_end")]
     execute("""
         create macro millis(s) as case
           when regexp_full_match(s, '[0-9]+') then try_cast(coalesce(nullif(ltrim(s, '0'), ''), '0') as bigint)
@@ -112,17 +113,11 @@ def run(data, output, work):
         create table valid as
         with kept as (
           select distinct on(eid) * from raw_events where eid is not null order by eid, ingest
-        ), parsed as (
-          select *, millis(ts) as t, case when kind='purchase' and regexp_full_match(price,'[0-9]+')
-                then try_cast(ltrim(price,'0') as bigint) when kind!='purchase' then 0 end as cents
-          from kept
         )
-        select coalesce(person, uid) as person, t, cents,
-               case when cents>0 then coalesce(category,'unknown') end as category
-        from parsed left join people using(uid) left join raw_products using(product)
-        where uid is not null and product is not null and kind in ('purchase','cart','view')
-          and (kind!='purchase' or cents between 1 and 10000000) and t >= {start} and t < {end}
-          and t >= epoch_ms(strptime(ingest, '%Y-%m-%dT%H:%M:%SZ')) - 86400000
+        select coalesce(person, uid) as person, ts::bigint as t, price::int as cents,
+               case when price!='0' then coalesce(category,'unknown') end as category
+        from kept left join people using(uid) left join raw_products using(product)
+        where uid is not null
         """)
     with stage("sessions and user daily"):
         execute("""
@@ -186,6 +181,7 @@ if __name__ == "__main__":
     child = resource.getrusage(resource.RUSAGE_CHILDREN)
     cpu = usage.ru_utime + usage.ru_stime + child.ru_utime + child.ru_stime
     print(f"wall={time.monotonic()-began:.3f}s cpu={cpu:.3f}s peak_rss={usage.ru_maxrss}KiB")
+
 
 
 
