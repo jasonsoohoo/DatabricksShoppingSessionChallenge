@@ -22,3 +22,17 @@ All five revisions passed the 36 official fixtures and exact dev comparisons. Th
 Stage durations use monotonic time. DuckDB evaluates views on export, so the output stage includes their final aggregates. CPU totals and duration are printed by the entry point. Divide CPU seconds by pipeline wall time for average active cores. The runner reports Git revision and Docker image digest and size. Official scores are recorded separately in SUBMISSIONS.md.
 
 The sliding-window revision 108514a89e2489f8d6469623a7c4f46a6a24517c passed all 36 fixtures and the exact dev comparison. Local times were 0.974 s small, 1.818 s dev, 15.072 s practice and 51.371 s final. The final run used 250.500 CPU-seconds, 7,885,816 KiB peak process RSS and 17,920,823,296 bytes peak container memory including filesystem cache. Build pins the same base image digests used in these measurements.
+
+## Release verification environment
+
+Host CPU is an AMD Ryzen 7 7800X3D, eight cores and 16 logical processors. Windows reports build 26200. Docker Desktop Linux exposes 16 logical CPUs and 33,168,183,296 bytes of RAM to the engine. The benchmark containers receive the lower competition limits described above. All three starter ZIPs contain 290 identical fixture files (byte-verified), so each suite run covers the supplied fixture set across engines.
+
+Release eb3762be83c1b0ee58826a8d674070f3a87fcf30 used a fresh Git archive and a no-cache Linux/AMD64 build. The archive held 25 files (29,362 bytes zipped); Docker reports 292,878,672 bytes for the image. The clean build passed 36/36 fixtures. On dev, the checker found 117,038 user/day rows and 27,400 campaign/day rows, with zero missing, extra, or duplicate keys in both tables. Dev took 1.991 s. Practice seed 23 took 17.608 s. At roughly two-second intervals on a 60M run, the highest of 22 combined scratch/output samples was 5,513,408,456 bytes. The sampled maximum does not capture transient activity between samples.
+
+| Clean final repeat | Docker wall | Pipeline wall | CPU seconds | Peak cgroup bytes |
+|---:|---:|---:|---:|---:|
+| 1 | 49.387 s | 48.991 s | 233.441 | 13,021,577,216 |
+| 2 | 47.052 s | 46.655 s | 221.399 | 13,108,256,768 |
+| 3 | 44.921 s | 44.484 s | 210.550 | 13,035,716,608 |
+
+The median local final-scale time was **47.052 s**. The median run used an average of 4.75 cores. Outputs were compared as multisets in both directions with EXCEPT ALL. Both tables matched the prior SQL attribution implementation on every final repeat (10,067,851 sessions, 20,418,435,163 revenue cents) and on practice (3,368,309 sessions, 6,155,929,657 cents). The small sweep run matched the earlier small result (19,939 sessions, 63,630,203 cents). Both daily tables reconciled and campaign assist checks passed. Large inputs have no published answer files.
