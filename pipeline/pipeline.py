@@ -1,5 +1,5 @@
 """Shopping Sessions entry point. Paths may also be supplied by the fixture runner."""
-import csv
+
 import json
 import os
 import re
@@ -98,7 +98,7 @@ def run(data, output, work):
                   for k in ("window_start", "window_end")]
     execute("""
         create macro millis(s) as case
-          when regexp_full_match(s, '[0-9]+') then try_cast(ltrim(s, '0') as bigint)
+          when regexp_full_match(s, '[0-9]+') then try_cast(coalesce(nullif(ltrim(s, '0'), ''), '0') as bigint)
           when regexp_full_match(s, '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-5][0-9]:[0-5][0-9](Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])')
             and substring(s,12,2) < '24' then
               epoch_ms(try_strptime(left(s,19), '%Y-%m-%dT%H:%M:%S')) -
@@ -106,7 +106,7 @@ def run(data, output, work):
                 (case when substring(s,20,1)='-' then -1 else 1 end) *
                 (try_cast(substring(s,21,2) as int)*60 + try_cast(right(s,2) as int))*60000 end
         end
-    """.replace("try_cast(ltrim(s, '0') as bigint)", "try_cast(coalesce(nullif(ltrim(s, '0'), ''), '0') as bigint)"))
+    """)
     with stage("event dedup and validation"):
         execute(f"""
         create table valid as
@@ -138,7 +138,7 @@ def run(data, output, work):
         create view user_daily as
         with categories as (
           select person, epoch_ms(begin_ms)::date as day, category, sum(cents) as total
-          from labeled where cents>0 group by all
+          from labeled where cents>0 group by person, day, category
           qualify row_number() over(partition by person,day order by total desc, category)=1
         )
         select person as user_id, day, count(*) as sessions, sum(events)::bigint as events,
@@ -184,3 +184,4 @@ if __name__ == "__main__":
         run(data, output, Path(scratch))
     usage = resource.getrusage(resource.RUSAGE_SELF)
     print(f"wall={time.monotonic()-began:.3f}s cpu={usage.ru_utime+usage.ru_stime:.3f}s peak_rss={usage.ru_maxrss}KiB")
+
