@@ -36,3 +36,7 @@ Release eb3762be83c1b0ee58826a8d674070f3a87fcf30 used a fresh Git archive and a 
 | 3 | 44.921 s | 44.484 s | 210.550 | 13,035,716,608 |
 
 The median local final-scale time was **47.052 s**. The median run used an average of 4.75 cores. Outputs were compared as multisets in both directions with EXCEPT ALL. Both tables matched the prior SQL attribution implementation on every final repeat (10,067,851 sessions, 20,418,435,163 revenue cents) and on practice (3,368,309 sessions, 6,155,929,657 cents). The small sweep run matched the earlier small result (19,939 sessions, 63,630,203 cents). Both daily tables reconciled and campaign assist checks passed. Large inputs have no published answer files.
+
+## First official practice result
+
+On 2026-11-21 the owner reported 24.98 s for eb3762be83c1b0ee58826a8d674070f3a87fcf30. That is 7.372 s (41.9%) longer than the clean local seed-23 practice run. Input seed and hardware differ, and the hidden run supplies no stage breakdown. One paired observation cannot isolate the cause or establish a final-scale conversion factor.
