@@ -81,15 +81,16 @@ def run(data, output, work):
     manifest = json.loads((data / "manifest.json").read_text())
     start, end = [int(datetime.fromisoformat(manifest[k]).timestamp()) * 1000
                   for k in ("window_start", "window_end")]
+    size = sum(p.stat().st_size for p in data.glob("events/*.csv"))
+    shards = max(1, (size + (512 << 20) - 1) // (512 << 20))
     execute = con.execute
     with stage("csv and identity"):
         path = work / "people.csv"
         canonical_file(path, (a + b"," + b for a, b in identities(data)))
         execute("create table people as select * from " + relation(path, "uid person"))
         subprocess.run(["/app/clean", data, work], check=True,
-                       env=dict(os.environ, WINDOW_START=str(start), WINDOW_END=str(end)))
+                       env=dict(os.environ, EVENT_SHARDS=str(shards), WINDOW_START=str(start), WINDOW_END=str(end)))
         for table, fields in {
-            "events": "eid ingest uid ts price product",
             "clicks": "cid uid campaign ts",
             "products": "product category",
             "campaigns": "campaign channel",
@@ -109,24 +110,28 @@ def run(data, output, work):
         end
     """)
     with stage("event dedup and validation"):
-        execute(f"""
-        create table valid as
-        with kept as (
-          select distinct on(eid) * from raw_events where eid is not null order by eid, ingest
-        )
-        select coalesce(person, uid) as person, ts::bigint as t, price::int as cents,
-               case when price!='0' then coalesce(category,'unknown') end as category
-        from kept left join people using(uid) left join raw_products using(product)
-        where uid is not null
-        """)
+        execute("create table valid(person varchar, t bigint, cents integer, category varchar)")
+        for shard in range(shards):
+            src = relation(work / "events" / f"*.{shard}.csv", "eid ingest uid ts price product")
+            execute(f"""
+            insert into valid
+            with kept as (
+              select distinct on(eid) * from {src} order by eid, ingest
+            )
+            select coalesce(person, uid), ts::bigint, price::int,
+                   case when price!='0' then coalesce(category,'unknown') end
+            from kept left join people using(uid) left join raw_products using(product)
+            where uid is not null
+            """)
     with stage("sessions and user daily"):
         execute("""
         create table labeled as
         with gaps as (
           select *, lag(t) over(partition by person order by t) as prev from valid
         )
-        select *, max(case when prev is null or t-prev>1800000 then t end)
+        select person, cents, category, max(case when prev is null or t-prev>1800000 then t end)
           over(partition by person order by t range unbounded preceding) as begin_ms from gaps;
+        drop table valid;
         create table sessions as select person, begin_ms, epoch_ms(begin_ms)::date as day,
           count(*) as events, sum(cents)::bigint as revenue
           from labeled group by person,begin_ms;
@@ -181,6 +186,7 @@ if __name__ == "__main__":
     child = resource.getrusage(resource.RUSAGE_CHILDREN)
     cpu = usage.ru_utime + usage.ru_stime + child.ru_utime + child.ru_stime
     print(f"wall={time.monotonic()-began:.3f}s cpu={cpu:.3f}s peak_rss={usage.ru_maxrss}KiB")
+
 
 
 

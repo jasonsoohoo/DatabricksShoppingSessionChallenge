@@ -86,7 +86,12 @@ fn event(out: &mut impl Write, v: &[&[u8];7], start: i64, end: i64) -> io::Resul
 
 fn clean_file(source: &Path, dest: &Path, width: usize, start: i64, end: i64) -> io::Result<()> {
     let mut input = BufReader::with_capacity(1 << 20, File::open(source)?);
-    let mut output = BufWriter::with_capacity(1 << 20, File::create(dest)?);
+    let shards = if width == 7 { env::var("EVENT_SHARDS").unwrap().parse().unwrap() } else { 1 };
+    let mut outputs = Vec::new();
+    for shard in 0..shards {
+        let path = if width == 7 { dest.with_extension(format!("{shard}.csv")) } else { dest.to_owned() };
+        outputs.push(BufWriter::with_capacity(1 << 17, File::create(path)?));
+    }
     let mut row = Vec::new();
     input.read_until(b'\n', &mut row)?;
     loop {
@@ -103,7 +108,12 @@ fn clean_file(source: &Path, dest: &Path, width: usize, start: i64, end: i64) ->
             *value = field;
         }
         if !valid || fields.next().is_some() { continue; }
-        if width == 7 { event(&mut output, &values, start, end)?; continue; }
+        if width == 7 {
+            let hash = values[0].iter().fold(0u64, |n, b| n.wrapping_mul(16777619) ^ u64::from(*b));
+            event(&mut outputs[hash as usize % shards], &values, start, end)?;
+            continue;
+        }
+        let output = &mut outputs[0];
         if line.contains(&b'\r') {
             for (i, value) in values[..width].iter().enumerate() {
                 if i != 0 { output.write_all(b",")?; }
@@ -116,7 +126,8 @@ fn clean_file(source: &Path, dest: &Path, width: usize, start: i64, end: i64) ->
         }
         output.write_all(b"\n")?;
     }
-    output.flush()
+    for output in &mut outputs { output.flush()?; }
+    Ok(())
 }
 
 fn main() -> io::Result<()> {
@@ -137,7 +148,7 @@ fn main() -> io::Result<()> {
         let dest = args[1].join(name);
         fs::create_dir(&dest)?;
         // A typed empty input also works when a directory contains no parts.
-        File::create(dest.join("empty.csv"))?;
+        if name == "events" && paths.is_empty() { File::create(dest.join("empty.0.csv"))?; } else { File::create(dest.join("empty.csv"))?; }
         for (index, path) in paths.into_iter().enumerate() {
             let size = fs::metadata(&path)?.len();
             jobs.push((size, path, dest.join(format!("{index}.csv")), width));
@@ -160,4 +171,5 @@ fn main() -> io::Result<()> {
         Ok(())
     })
 }
+
 
