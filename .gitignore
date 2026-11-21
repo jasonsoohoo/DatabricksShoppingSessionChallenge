@@ -1,0 +1,12 @@
+.local/
+dev/
+dev-answer/
+out/
+fixtures/
+scratch/
+__pycache__/
+*.zip
+*.parquet
+*.env
+.env*
+.aws/

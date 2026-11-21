@@ -1,0 +1,1 @@
+Use docs/SPECIFICATION.md and the supplied official fixtures and checker. Run all fixtures and compare both dev tables before recording a candidate. Keep generated inputs, fixtures, reference answers, scratch and output outside Git. Record repeatable measurements and preserve tested revisions. Never publish, push or submit without explicit authorization.

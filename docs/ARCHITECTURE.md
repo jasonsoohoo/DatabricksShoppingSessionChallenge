@@ -1,0 +1,1 @@
+Python performs strict LF-record handling and identity union-find. DuckDB handles disk-backed deduplication, timestamp validation, ordered session windows, click attribution, daily aggregation and Parquet. Bound SQL threads and memory from scorer variables. Keep temporary files in a unique scratch directory per run.
