@@ -1,7 +1,12 @@
 # Shopping Sessions starter: DuckDB skeleton.
 # The scorers are linux/amd64 (Intel Xeon). They build this file natively, so
 # no FROM line pins a platform: `make build` builds for linux/amd64 anywhere.
+FROM rust:1.85-bookworm AS compiler
+COPY pipeline/clean.rs /tmp/clean.rs
+RUN rustc -O --edition 2024 /tmp/clean.rs -o /clean
+
 FROM python:3.12-slim-bookworm
+COPY --from=compiler /clean /app/clean
 
 # The scorer runs the container as uid 1000; give that uid a name and a home.
 RUN useradd --uid 1000 --no-create-home --home-dir /scratch app && install -d -o 1000 -g 1000 /scratch
@@ -21,4 +26,5 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 CMD ["/app/run.sh"]
+
 

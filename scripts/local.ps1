@@ -1,4 +1,4 @@
-param([ValidateSet('build','fixtures','dev','small','compare')][string]$Action = 'dev')
+param([ValidateSet('build','fixtures','dev','small','practice','final','compare')][string]$Action = 'dev')
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $root = (Resolve-Path "$PSScriptRoot/..").Path
@@ -19,10 +19,12 @@ try {
         docker run @limits -v "${root}/scripts:/checks:ro" -v "${root}/.local/out-dev:/actual:ro" -v "${root}/dev-answer:/expected:ro" shopping-validator python /checks/compare.py /actual /expected
     } else {
         $folder = New-Item -Force -ItemType Directory ".local/out-$Action"
+        $source = if ($Action -in @("practice","final")) { "shopping-buildathon-$Action" } else { "${root}/.local/${Action}" }
         git rev-parse HEAD
         docker image inspect shopping-sessions --format 'image={{.Id}} bytes={{.Size}}'
         $watch = [Diagnostics.Stopwatch]::StartNew()
-        docker run @limits -v "${root}/.local/${Action}:/data:ro" -v "${folder}:/output" shopping-sessions
+        docker run @limits -v "${source}:/data:ro" -v "${folder}:/output" shopping-sessions
         "container wall {0:N3}s" -f $watch.Elapsed.TotalSeconds
     }
 } finally { Pop-Location }
+

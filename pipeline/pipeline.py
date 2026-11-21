@@ -4,6 +4,7 @@ import json
 import os
 import re
 import resource
+import subprocess
 import sys
 import tempfile
 import time
@@ -67,7 +68,7 @@ def canonical_file(path, rows):
 def relation(path, names):
     columns = ", ".join(f"'{name}':'VARCHAR'" for name in names.split())
     return (f"read_csv({literal(path)}, columns={{{columns}}}, auto_detect=false, "
-            "header=false, delim=',', quote='\x22', escape='\x22', new_line='\\n', parallel=false)")
+            "header=false, delim=',', quote='\x22', escape='\x22', new_line='\\n', parallel=true)")
 
 
 def run(data, output, work):
@@ -82,15 +83,14 @@ def run(data, output, work):
         path = work / "people.csv"
         canonical_file(path, (a + b"," + b for a, b in identities(data)))
         execute("create table people as select * from " + relation(path, "uid person"))
+        subprocess.run(["/app/clean", data, work], check=True)
         for table, fields in {
             "events": "eid uid ts ingest kind product price",
             "clicks": "cid uid campaign ts",
             "products": "product category",
             "campaigns": "campaign channel",
         }.items():
-            files = [data / (table + ".csv")] if table in ("products", "campaigns") else data.glob(table + "/*.csv")
-            path = work / (table + ".csv")
-            canonical_file(path, records(files, len(fields.split())))
+            path = work / table / "*.csv"
             execute(f"create view raw_{table} as select * from " + relation(path, fields))
 
     manifest = json.loads((data / "manifest.json").read_text())
@@ -183,5 +183,9 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory(dir=os.getenv("SCRATCH_DIR")) as scratch:
         run(data, output, Path(scratch))
     usage = resource.getrusage(resource.RUSAGE_SELF)
-    print(f"wall={time.monotonic()-began:.3f}s cpu={usage.ru_utime+usage.ru_stime:.3f}s peak_rss={usage.ru_maxrss}KiB")
+    child = resource.getrusage(resource.RUSAGE_CHILDREN)
+    cpu = usage.ru_utime + usage.ru_stime + child.ru_utime + child.ru_stime
+    print(f"wall={time.monotonic()-began:.3f}s cpu={cpu:.3f}s peak_rss={usage.ru_maxrss}KiB")
+
+
 
