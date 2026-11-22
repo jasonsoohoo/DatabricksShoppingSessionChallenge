@@ -174,3 +174,28 @@ Practice median elapsed time decreased 22.9%. These are same-day local container
 | Median | 23.263 s | 19.316 s |
 
 Final-scale median elapsed time decreased 17.0%. Peak B cgroup usage across those runs was 12,150,829,056 bytes under the 24 GiB limit. Both daily Parquet tables matched in both directions with EXCEPT ALL in all six pairs. Session and revenue reconciliation and campaign assist invariants passed. Separate untimed seed-23 runs exported all intermediate rows. The multiset of (person, session start, cents, category) matched for 19,535,163 labeled events, and the complete per-session table matched for 3,368,309 sessions. The owner reported 8.8148 s on official practice, down from 13.3325 s. The official reduction of 33.88% exceeded the paired local practice reduction of 22.9% by about 11 percentage points. The hidden run supplies no stage timings to identify the cause.
+
+## Native click timeline joins
+
+The control was edd24d4f9f43317c69c33f02416a14231ab53f26 (8.8148 s on official practice). Candidate a44693d5344aa3b83303b8e6929c168075c7e828 was built from its Git archive, image 01b36cc06e1a. It resolves campaign codes and canonical people during the native click scan and supplies typed Arrow batches to the existing timeline sort. This removes the cleaned click CSV round-trip and the DuckDB identity lookup table.
+
+| Control operation | Practice seed 23 | Final seed 42 |
+|---|---:|---:|
+| Click preparation alone | 0.186 s | 0.648 s |
+| Timeline joins, session union and materialization | 0.777 s | 4.062 s |
+| Timeline sort and materialization | 0.615 s | 2.002 s |
+| Ordered CSV export | 0.269 s | 0.745 s |
+| Parallel Rust sweep | 0.300 s | 0.838 s |
+
+Click preparation is the median of three standalone runs of the control cleaner on the original clicks and header-only dimensions. The remaining rows are one instrumented pass per scale. Materialize the original click joins and session union in one temporary table, then the ordered projection in a second table. Time the ordered COPY and the attribute subprocess separately. These extra writes isolate the operators and affect their absolute times. The following paired end-to-end runs use the uninstrumented images.
+
+| Local container wall time | Practice control | Practice candidate | Final control | Final candidate |
+|---|---:|---:|---:|---:|
+| Pair 1 | 5.991 s | 5.396 s | 18.869 s | 14.677 s |
+| Pair 2 | 5.923 s | 5.408 s | 16.953 s | 14.494 s |
+| Pair 3 | 5.500 s | 5.172 s | 18.962 s | 16.744 s |
+| Median | 5.923 s | 5.396 s | 18.869 s | 14.677 s |
+
+Run scripts/local.ps1 for practice and final with the control image and candidate image. Use a unique output label per run, the same volume for both images, and order AB, BA, AB per scale. Each container received 8 CPUs, 24 GiB and fresh scratch. Candidate median time fell 8.9% on practice and 22.2% at final scale. Its combined native click preparation and join timer had medians of 0.540 s and 1.548 s. Maximum final-scale candidate memory was 9,897,250,816 bytes.
+
+All 36 fixtures passed. The official dev checker matched 117,038 user/day rows and 27,400 campaign/day rows with zero duplicate keys. Both daily tables matched in both directions with EXCEPT ALL in every large pair. Session, revenue and assist checks passed on both scales. An additional untimed seed-23 comparison matched all 5,131,997 joined click rows, including multiplicities, by click ID, canonical person, timestamp and campaign ID. Candidate official score pending.

@@ -25,3 +25,7 @@ The separate practice profile measured 2.824 s for identity resolution and looku
 ## Native session labeling
 
 The session labeler took 2.264 s on local practice versus 0.162 s for per-session aggregation. Native per-person sorting and scanning reduced end-to-end median runtime by 22.9% on practice and 17.0% on final scale. All public checks, the six paired output comparisons and a full practice comparison of the intermediate tables passed. The official practice score fell to 8.8148 s. Use this revision as the next control. Reprofile click preparation, the timeline join and sort, CSV export, and the parallel sweep on this revision before selecting the next change. The combined clicks and attribution stage took 6.391 s in the median local final-scale run.
+
+## Native click timeline joins
+
+The timeline join was the slowest profiled attribution operation on practice and final scale. Resolving click users and campaigns during parsing reduced local practice median runtime from 5.923 s to 5.396 s and final-scale median runtime from 18.869 s to 14.677 s. All public checks, all six large output comparisons and the complete practice click comparison passed. Await the official result for a44693d5344aa3b83303b8e6929c168075c7e828 before updating the official ranking.
