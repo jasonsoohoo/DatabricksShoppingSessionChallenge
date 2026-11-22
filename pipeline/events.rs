@@ -1,6 +1,7 @@
 mod clicks;
 mod csv;
 mod sessions;
+mod people;
 
 use std::ffi::{CStr, c_char};
 use std::fs::{self, File};
@@ -278,4 +279,21 @@ pub unsafe extern "C" fn events_batch(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn events_close(handle: *mut std::ffi::c_void) {
     drop(unsafe { Box::from_raw(handle.cast::<Vec<Batch>>()) });
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn people_open(dir: *const c_char) -> *mut std::ffi::c_void {
+    let path = Path::new(std::ffi::OsStr::from_bytes(unsafe { CStr::from_ptr(dir) }.to_bytes()));
+    match people::People::load(path) {
+        Ok(people) => Box::into_raw(Box::new(people)).cast(),
+        Err(err) => {
+            eprintln!("identity resolver: {err}");
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn people_close(handle: *mut std::ffi::c_void) {
+    drop(unsafe { Box::from_raw(handle.cast::<people::People>()) });
 }

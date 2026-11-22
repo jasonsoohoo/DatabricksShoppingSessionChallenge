@@ -1,10 +1,6 @@
-use super::{Batch, PARTITIONS, Strings, csv, parallel};
+use super::{Batch, PARTITIONS, Strings, parallel, people::People};
 use std::collections::HashMap;
-use std::ffi::{CStr, OsStr, c_char, c_void};
-use std::fs;
-use std::io;
-use std::os::unix::ffi::OsStrExt;
-use std::path::Path;
+use std::ffi::c_void;
 
 #[derive(Clone, Copy)]
 struct Event<'a> {
@@ -15,26 +11,16 @@ struct Event<'a> {
 
 type Routed<'a> = Vec<Vec<(&'a [u8], Event<'a>)>>;
 
-fn shard(person: &[u8]) -> usize {
-    let hash = person.iter().fold(14695981039346656037u64, |h, &b| {
-        (h ^ u64::from(b)).wrapping_mul(1099511628211)
-    });
-    hash as usize % PARTITIONS
-}
-
 fn value(strings: &Strings, i: usize) -> &[u8] {
     &strings.data[strings.offsets[i] as usize..strings.offsets[i + 1] as usize]
 }
 
-fn route<'a>(batch: &'a Batch, people: &HashMap<&'a [u8], (&'a [u8], usize)>) -> Routed<'a> {
+fn route<'a>(batch: &'a Batch, people: &'a People) -> Routed<'a> {
     let mut buckets = vec![Vec::new(); PARTITIONS];
     for (i, &time) in batch.times.iter().enumerate() {
         let uid = value(&batch.users, i);
-        let (person, partition) = people
-            .get(uid)
-            .copied()
-            .unwrap_or_else(|| (uid, shard(uid)));
-        buckets[partition].push((
+        let (person, hash) = people.canonical(uid);
+        buckets[hash as usize % PARTITIONS].push((
             person,
             Event {
                 time,
@@ -74,39 +60,13 @@ fn label_partition(routed: &[Routed], partition: usize) -> Batch {
     result
 }
 
-fn label(batches: &[Batch], lookup: &Path, workers: usize) -> io::Result<Vec<Batch>> {
-    let bytes = fs::read(lookup)?;
-    let mut people = HashMap::new();
-    for row in bytes.split(|&b| b == b'\n').filter(|row| !row.is_empty()) {
-        let [uid, person] =
-            csv::fields(row).ok_or_else(|| io::Error::other("invalid identity lookup row"))?;
-        people.insert(uid, (person, shard(person)));
-    }
-    let routed = parallel(batches.len(), workers, |i| route(&batches[i], &people));
-    Ok(parallel(PARTITIONS, workers, |i| {
-        label_partition(&routed, i)
-    }))
-}
-
-// Called once on the owning batch handle, before any buffers are exported.
+// Labeling copies person and product bytes into the output before returning.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn events_label(
-    handle: *mut c_void,
-    lookup: *const c_char,
-    workers: usize,
-) -> bool {
+pub unsafe extern "C" fn events_label(handle: *mut c_void, lookup: *const People, workers: usize) {
     let batches = unsafe { &mut *handle.cast::<Vec<Batch>>() };
-    let path = Path::new(OsStr::from_bytes(
-        unsafe { CStr::from_ptr(lookup) }.to_bytes(),
-    ));
-    match label(batches, path, workers.max(1)) {
-        Ok(labeled) => {
-            *batches = labeled;
-            true
-        }
-        Err(err) => {
-            eprintln!("session labeler: {err}");
-            false
-        }
-    }
+    let people = unsafe { &*lookup };
+    let workers = workers.max(1);
+    let routed = parallel(batches.len(), workers, |i| route(&batches[i], people));
+    let labeled = parallel(PARTITIONS, workers, |i| label_partition(&routed, i));
+    *batches = labeled;
 }

@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 import duckdb
-from events import ClickBatches, EventBatches
+from events import ClickBatches, EventBatches, People
 
 
 @contextmanager
@@ -45,8 +45,7 @@ def run(data, output, work):
     execute = con.execute
     workers = int(os.getenv("NCPU", "8"))
     with stage("identity resolution and lookup table"):
-        path = work / "people.csv"
-        subprocess.run(["/app/identity", data / "links", path], check=True)
+        people = People(data / "links")
 
     with stage("dimension CSV preparation"):
         subprocess.run(["/app/clean", data, work], check=True)
@@ -61,7 +60,7 @@ def run(data, output, work):
     with stage("event dedup and validation"):
         winners = EventBatches(data / "events", start, end, workers)
     with stage("session labeling"):
-        con.register("labeled", winners.labeled_table(work / "people.csv", workers))
+        con.register("labeled", winners.labeled_table(people, workers))
         del winners
     with stage("per-session aggregation"):
         execute("""
@@ -90,9 +89,9 @@ def run(data, output, work):
         code_path = work / "codes.csv"
         execute(f"copy (select campaign, code from codes) to {literal(code_path)} (format csv, header false)")
         with stage("native click preparation and timeline joins"):
-            clicks = ClickBatches(data / "clicks", work / "people.csv", code_path, start, end, workers)
+            clicks = ClickBatches(data / "clicks", people, code_path, start, end, workers)
             con.register("prepared_clicks", clicks.table())
-            del clicks
+            del clicks, people
         execute("set preserve_insertion_order=true")
         execute(f"""
           copy (

@@ -1,4 +1,4 @@
-use super::{Batch, csv, csv_jobs, parallel, read_chunk};
+use super::{Batch, people::People, csv, csv_jobs, parallel, read_chunk};
 use std::collections::HashMap;
 use std::ffi::{CStr, OsStr, c_char, c_void};
 use std::fs;
@@ -6,16 +6,10 @@ use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-fn prepare(dir: &Path, lookup: &Path, codes: &Path, start: i64, end: i64, workers: usize)
+fn prepare(dir: &Path, people: &People, codes: &Path, start: i64, end: i64, workers: usize)
     -> io::Result<Vec<Batch>> {
-    let people_data = fs::read(lookup)?;
     let campaign_data = fs::read(codes)?;
-    let mut people = HashMap::new();
     let mut campaigns = HashMap::new();
-    for row in people_data.split(|&b| b == b'\n').filter(|r| !r.is_empty()) {
-        let [uid, person] = csv::fields(row).ok_or_else(|| io::Error::other("invalid identity mapping"))?;
-        people.insert(uid, person);
-    }
     for row in campaign_data.split(|&b| b == b'\n').filter(|r| !r.is_empty()) {
         let [id, code] = csv::fields(row).ok_or_else(|| io::Error::other("invalid campaign mapping"))?;
         let code = csv::decimal(code).and_then(|n| i32::try_from(n).ok())
@@ -31,7 +25,7 @@ fn prepare(dir: &Path, lookup: &Path, codes: &Path, start: i64, end: i64, worker
             let Some(&code) = campaigns.get(campaign) else { return Ok(()) };
             let Some(t) = csv::millis(ts) else { return Ok(()) };
             if t >= start - 604_800_000 && t < end {
-                batch.users.push(people.get(user).copied().unwrap_or(user));
+                batch.users.push(people.canonical(user).0);
                 batch.products.push(id);
                 batch.times.push(t);
                 batch.cents.push(code);
@@ -50,11 +44,11 @@ fn prepare(dir: &Path, lookup: &Path, codes: &Path, start: i64, end: i64, worker
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn clicks_open(
-    dir: *const c_char, people: *const c_char, codes: *const c_char, start: i64, end: i64,
+    dir: *const c_char, people: *const People, codes: *const c_char, start: i64, end: i64,
     workers: usize, count: *mut usize,
 ) -> *mut c_void {
     let path = |ptr| Path::new(OsStr::from_bytes(unsafe { CStr::from_ptr(ptr) }.to_bytes()));
-    match prepare(path(dir), path(people), path(codes), start, end, workers.max(1)) {
+    match prepare(path(dir), unsafe { &*people }, path(codes), start, end, workers.max(1)) {
         Ok(batches) => {
             unsafe { *count = batches.len(); }
             Box::into_raw(Box::new(batches)).cast()
