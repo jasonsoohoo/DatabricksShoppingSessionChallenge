@@ -37,3 +37,7 @@ Identity lookup and routing consumed 0.609 s on local practice, ahead of groupin
 ## Event parser experiments
 
 Separate control timings identified parsing and partitioning as the largest event stage. Block scanning and validated date caching passed verification but increased the paired practice median from 10.969 s to 11.090 s. Retaining raw event ranges also passed verification but increased practice and final-scale medians. A direct-routing pilot lost all three practice pairs. Keep the 7.6800 s submission as the control. Future parser work should first isolate delimiter scanning, timestamp decoding and writes to the partition buffers on the same event input.
+
+## Buffered delimiter index
+
+Delimiter handling, including line reading and copying, was the largest of the three measured event parser costs on both scales. The buffered reader and compact partition metadata reduced local median runtime from 12.5985 s to 10.8985 s on practice and from 31.872 s to 29.8255 s at final scale. All official local checks and all twelve large output comparisons passed. Use 6832e74c86b7c7e611bebeb41f2ca33e544464f1 for the next official practice run and compare it with the 7.6800 s control.

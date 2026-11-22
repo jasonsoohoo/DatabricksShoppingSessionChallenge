@@ -252,3 +252,34 @@ Each series used fresh containers and scratch space, identical named input volum
 A third practice-only pilot used compact event storage and routed the elected rows directly to session labeling. The three control times were 7.338, 8.131 and 8.147 s. The pilot took 8.486, 8.295 and 8.674 s in the respective pairs. It lost all three comparisons and did not advance to release verification. The 7.6800 s official control remains the selected revision.
 
 A final stage-only check loaded the instrumented control and block scanner libraries into one container per input scale. Each call opened and released the full event batches with eight workers. Order was AB, BA, AB. Control median parsing, winner selection and batch construction were 1.170, 0.155 and 0.217 s on practice, and 3.507, 0.823 and 0.600 s at final scale. The block scanner reduced median parsing to 1.042 s and 2.950 s respectively. Its full-pipeline practice median remained slower in the separate uninstrumented release comparison above.
+
+## Delimiter scanning, timestamp decoding and partition writes
+
+Control 0cdcdc9cacfe0ad20489568b7645917acabd7f3a scored 7.6800 s on official practice. In a diagnostic copy of its native event reader, sample every 127th row within each input range. Time the buffered LF read and row copy, the seven-field split and quote validation, both timestamp decodes with the window/lateness check, and the compact partition byte and metadata appends. Subtract one empty clock measurement per timed interval. Event-type/price validation and event-ID hashing are outside these intervals. Samples are worker-local elapsed times, including any stalls. They are diagnostic estimates rather than additive pipeline wall times. The field/timestamp/write timers exclude malformed rows that return before their end. Three fresh event reads used each original input volume with eight workers.
+
+| Median sampled nanoseconds per row | Practice (169,294 timed rows/run) | Final (507,615 timed rows/run) |
+|---|---:|---:|
+| Delimiter handling, including LF read and copy | 174.8 | 196.6 |
+| LF read and copy alone | 53.3 | 64.8 |
+| Field delimiters and quote validation alone | 121.5 | 131.8 |
+| Timestamp decoding and time checks | 37.6 | 45.7 |
+| Partition buffer writes | 147.1 | 134.3 |
+
+Candidate 6832e74c86b7c7e611bebeb41f2ca33e544464f1 indexes comma/LF positions and per-record quote counts in blocks of complete rows from a buffered reader. Only records crossing an I/O buffer or file-range boundary require a separate row copy. A scalar path handles long records and CPUs without AVX2 and POPCNT. All quote bytes must be accounted for by complete field wrappers. Partition buffers reserve space in proportion to the range size and store a 32-bit probe hash. Winner selection still compares entire event IDs. Workers take the largest remaining range when free.
+
+The first event-only pilot indexed a whole input range and did not improve median wall time. The streaming pilot reduced event-stage medians from 1.852 to 1.426 s on practice and 7.786 to 5.995 s at final scale. These diagnostic comparisons alternated AB, BA, AB within a single container per scale. The end-to-end release benchmark below uses separate containers and includes startup, both Parquet outputs and exit.
+
+The scored control image was 20e685a6c5c8 and the candidate Git-archive image was 0bae5bf8f3fc. Use scripts/local.ps1 with the practice seed-23 and final seed-42 volumes, eight CPUs, 24 GiB and fresh scratch. Use a unique output label per run. Alternate AB and BA for six pairs per scale. Wall time includes container launch, execution and exit.
+
+| Local container wall time | Practice control | Practice candidate | Final control | Final candidate |
+|---|---:|---:|---:|---:|
+| Pair 1 | 12.846 s | 11.031 s | 35.451 s | 28.872 s |
+| Pair 2 | 16.239 s | 12.008 s | 32.614 s | 30.779 s |
+| Pair 3 | 10.610 s | 10.964 s | 32.445 s | 31.445 s |
+| Pair 4 | 12.351 s | 10.370 s | 31.299 s | 34.055 s |
+| Pair 5 | 11.765 s | 10.363 s | 31.248 s | 28.344 s |
+| Pair 6 | 13.533 s | 10.833 s | 30.989 s | 28.096 s |
+| Median | 12.5985 s | 10.8985 s | 31.872 s | 29.8255 s |
+
+End-to-end median runtime fell 13.5% on practice and 6.4% at final scale. All 36 official fixtures passed. Both official dev schemas and all 117,038 user/day and 27,400 campaign/day rows matched with zero duplicate keys. Both daily outputs matched the control in both directions with EXCEPT ALL in all twelve large pairs, and session, revenue and assist checks passed. A separate intermediate comparison matched 19,535,163 validated practice winner rows including multiplicities. A targeted collision check confirmed distinct event IDs with the same 32-bit hash remain separate and that an invalid earliest copy suppresses only its own ID. Official practice score pending.
+The candidate won five of six full-pipeline pairs at each scale. Its median event deduplication and validation stage fell from 2.9500 to 1.7945 s on practice and from 6.844 to 4.831 s at final scale. Peak container memory across the final-scale runs was 10,068,660,224 bytes for the candidate and 10,267,873,280 bytes for the control.
