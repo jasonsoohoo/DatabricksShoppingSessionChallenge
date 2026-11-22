@@ -6,7 +6,7 @@
 | M1 correctness | Complete | Both output schemas and every expected row pass the official local fixture and seed-1 dev checkers. |
 | M2 benchmarking | Complete | Four reproducible input scales. Docker entry point reports stage timings, CPU and memory. Local runner records wall time, revision and image size. |
 | M3 optimization | Complete for this candidate | Native CSV and timestamp parsing, bounded event dedup and sliding-window attribution. Recoverable revisions and observed performance in BENCHMARKS.md. |
-| M4 hand-in | Ninth official practice run scored 6.2805 s | Per-person attribution passed both dev datasets and all sixteen paired comparisons. Final-scale local median was 13.8910 s. Submission SHA in SUBMISSIONS.md. |
+| M4 hand-in | Session totals candidate verified locally, awaiting official score | Best reported official practice is 6.2805 s. Both dev datasets and twelve current-generator pairs passed for the new candidate. Submission SHA in SUBMISSIONS.md. |
 
 The owner handles publication and scorer submission. Record each reported official score against its exact SHA, update the best official result, and use the hidden-run timing to prioritize the next experiment. The official dataset, scorer hardware and hidden results are unavailable locally.
 
@@ -45,3 +45,7 @@ Delimiter handling, including line reading and copying, was the largest of the t
 ## Per-person attribution
 
 Click attribution was the largest top-level stage at both scales on the 7.4790 s release. Parallel attribution within the existing canonical-person partitions reduced end-to-end medians on the supplied practice and final volumes by 9.8% and 13.9%. The current-generator practice median fell 15.7%. Both official dev datasets and all sixteen large differential comparisons passed. Official practice improved by 1.1985 s to 6.2805 s. Use ba1c45ec10eb2051ff7913d88c1c84f932978f63 as the next control. Profile remaining session labeling and identity-resolution work on current-generator data before selecting the next optimization.
+
+## Session totals during labeling
+
+The current generator confirmed session labeling took longer than identity resolution at both scales. Computing session totals in the sorted event pass reduced end-to-end medians to 4.4425 s on practice and 12.95 s at final scale. Compare the next official practice result with the 6.2805 s control.

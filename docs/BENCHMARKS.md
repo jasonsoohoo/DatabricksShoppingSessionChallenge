@@ -326,3 +326,20 @@ For the current official dev check, build the generator from the track page with
 For current-generator practice, generate seed 23 with 20M events and 5M clicks, and run four pairs in AB, BA, AB, BA order under the same container limits. Control wall times were 7.020, 6.541, 6.245 and 5.601 s. Candidate times were 5.892, 5.442, 5.342 and 4.888 s. The median fell from 6.393 to 5.392 s (15.7%). Both daily outputs matched in all four pairs. The owner reported 6.2805 s on official practice, down from 7.4790 s. The 16.02% reduction was close to the 15.7% measured on current-generator practice.
 
 A separate worker-count experiment ran the scored control on the current seed-23 practice volume. Both the CPU quota and NCPU were set to 1, 4, 8, 8, 4, 1 in sequence, with all other limits unchanged. Median start-to-exit times from the two runs per setting were 23.6125 s, 7.6365 s and 5.5570 s respectively. Eight workers gave a 4.25x end-to-end speedup over one. The organizer limits every submission to eight pinned vCPUs. The public board showed a leading time of 0.4293 s when checked, without implementation details that would identify the team's strategy. [Official track and board](https://www.joinbuilders.org/buildathon/tracks/shopping-sessions)
+
+## Session totals during labeling
+
+Candidate 505f3edac7f245782df1f48866e5ef19c30f2b89 was compared with ba1c45ec10eb2051ff7913d88c1c84f932978f63, which scored 6.2805 s on official practice. Three separate baseline profiles measured median session labeling and identity resolution at 1.099 s and 0.345 s on practice, and 4.074 s and 1.660 s at final scale.
+
+Use the current generator identified above with seed 23 (20M events, 5M clicks) and seed 42 (60M events, 15M clicks). Mount each input read-only for both revisions, with eight CPUs, 24 GiB memory and eight workers. Time the full container invocation with six paired runs per scale, alternating control-first and candidate-first. The control and candidate images were built from the respective revisions. Times below are seconds.
+
+| Scale | Control wall times | Candidate wall times | Control median | Candidate median | Paired wins |
+|---|---|---|---:|---:|---:|
+| practice | 4.865, 4.707, 4.522, 4.695, 5.091, 4.714 | 4.557, 4.366, 4.248, 4.352, 4.563, 4.519 | 4.7105 | 4.4425 | 6/6 |
+| final | 13.815, 13.172, 13.601, 13.076, 13.493, 15.032 | 13.794, 13.127, 12.6, 12.22, 13.2, 12.773 | 13.547 | 12.95 | 6/6 |
+
+On practice the labeling median went from 1.065 to 1.019 s. Maximum container memory went from 4501827584 to 3806507008 bytes. On final the labeling median went from 3.8965 to 3.7665 s. Maximum container memory went from 11260833792 to 10296082432 bytes.
+
+The exact candidate passed all 36 fixtures. The supplied dev references matched 117,038 user/day and 27,400 campaign/day rows. The current references matched 118,107 and 27,449 rows respectively. Both tables had zero unmatched rows and duplicate keys on both dev datasets. All twelve large comparisons matched both daily tables in both directions with EXCEPT ALL and passed the session, revenue and assist checks.
+
+On current-generator practice, the control emitted 19,535,729 event labels and the candidate emitted 3,491,237 rows. A separate two-way EXCEPT ALL comparison matched every one of the 3,396,494 per-session summaries (person, start, event count, revenue) and 557,914 positive purchases (person, start, cents, product), including multiplicity.

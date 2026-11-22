@@ -2,7 +2,7 @@
 
 ## Best available submission
 
-**Selected local SHA:** `ba1c45ec10eb2051ff7913d88c1c84f932978f63`. In-memory per-person attribution passed the public fixtures, both versions of the official dev checks, and all sixteen paired large output comparisons. Local medians on the original volumes were 5.2575 s on practice and 13.8910 s at final scale. Current-generator practice median was 5.392 s. Its official practice score of 6.2805 s is the best reported result.
+**Selected local SHA:** `505f3edac7f245782df1f48866e5ef19c30f2b89`. Session totals computed during labeling passed the fixtures, both official dev references and twelve paired comparisons. Current-generator medians were 4.4425 s on practice and 12.95 s at final scale. Official score pending. The best reported official practice result is 6.2805 s for ba1c45ec10eb2051ff7913d88c1c84f932978f63.
 
 Run `git rev-parse best-verified` for the selected local submission SHA. BENCHMARKS.md records the implementation, local verification and measurements. Each tested implementation remains in the history of main. The development checkout may contain subsequent ledger or benchmark updates.
 
@@ -54,4 +54,5 @@ All revisions below passed the official local fixtures and dev comparison. BENCH
 | a450e7a86d4d75ca4013e32650ae0cddbd7b73f1 | Block event scanner. Passed public and large checks. Slower on practice. Local experiment. |
 | e901b8c968b58689388ae02879581efdec222307 | Raw-range event partitions. Passed public and large checks. Slower on both scales. Local experiment. |
 | 6832e74c86b7c7e611bebeb41f2ca33e544464f1 | Buffered delimiter index. Official practice score, 7.4790 s. |
-| ba1c45ec10eb2051ff7913d88c1c84f932978f63 | Best verified local release. In-memory per-person attribution. Best official practice score, 6.2805 s. |
+| ba1c45ec10eb2051ff7913d88c1c84f932978f63 | In-memory per-person attribution. Best official practice score, 6.2805 s. |
+| 505f3edac7f245782df1f48866e5ef19c30f2b89 | Session totals during labeling. Best verified local release. Official score pending. |
