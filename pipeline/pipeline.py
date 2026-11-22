@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 import duckdb
+from events import EventBatches
 
 
 @contextmanager
@@ -81,15 +82,13 @@ def run(data, output, work):
     manifest = json.loads((data / "manifest.json").read_text())
     start, end = [int(datetime.fromisoformat(manifest[k]).timestamp()) * 1000
                   for k in ("window_start", "window_end")]
-    size = sum(p.stat().st_size for p in data.glob("events/*.csv"))
-    shards = max(1, (size + (512 << 20) - 1) // (512 << 20))
     execute = con.execute
     with stage("csv and identity"):
         path = work / "people.csv"
         canonical_file(path, (a + b"," + b for a, b in identities(data)))
         execute("create table people as select * from " + relation(path, "uid person"))
         subprocess.run(["/app/clean", data, work], check=True,
-                       env=dict(os.environ, EVENT_SHARDS=str(shards), WINDOW_START=str(start), WINDOW_END=str(end)))
+                       env=dict(os.environ, WINDOW_START=str(start), WINDOW_END=str(end)))
         for table, fields in {
             "clicks": "cid uid campaign ts",
             "products": "product category",
@@ -99,19 +98,16 @@ def run(data, output, work):
             execute(f"create view raw_{table} as select * from " + relation(path, fields))
 
     with stage("event dedup and validation"):
-        execute("create table valid(person varchar, t bigint, cents integer, category varchar)")
-        for shard in range(shards):
-            src = relation(work / "events" / f"*.{shard}.csv", "eid ingest uid ts price product")
-            execute(f"""
-            insert into valid
-            with kept as (
-              select distinct on(eid) * from {src} order by eid, ingest
-            )
-            select coalesce(person, uid), ts::bigint, price::int,
-                   case when price!='0' then coalesce(category,'unknown') end
-            from kept left join people using(uid) left join raw_products using(product)
-            where uid is not null
-            """)
+        events = EventBatches(data / "events", start, end, int(os.getenv("NCPU", "8"))).table()
+        con.register("event_winners", events)
+        execute("""
+          create table valid as
+          select coalesce(person, uid) as person, t, cents,
+                 case when cents>0 then coalesce(category,'unknown') end as category
+          from event_winners left join people using(uid) left join raw_products using(product)
+        """)
+        con.unregister("event_winners")
+        del events
     with stage("sessions and user daily"):
         execute("""
         create table labeled as
@@ -179,4 +175,3 @@ if __name__ == "__main__":
     peak = Path("/sys/fs/cgroup/memory.peak")
     if peak.is_file():
         print(f"container_peak_bytes={peak.read_text().strip()}")
-

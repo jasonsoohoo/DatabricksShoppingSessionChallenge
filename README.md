@@ -1,6 +1,6 @@
 # Shopping Sessions
 
-The scorer builds the root Dockerfile and runs its default command. Development uses PowerShell 7 and Docker Desktop in Linux container mode. The production image contains DuckDB 1.5.6. The separate validator image contains Polars 2.1.0.
+The scorer builds the root Dockerfile and runs its default command. Development uses PowerShell 7 and Docker Desktop in Linux container mode. The production image uses DuckDB 1.5.6 and PyArrow 20.0.0 to consume Rust-owned event columns. The separate validator image contains Polars 2.1.0.
 
 ## Restore local materials
 

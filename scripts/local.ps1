@@ -1,4 +1,4 @@
-param([ValidateSet('build','fixtures','dev','small','practice','final','compare')][string]$Action = 'dev', [ValidatePattern('^[a-zA-Z0-9-]+$')][string]$Run = 'default')
+param([ValidateSet('build','fixtures','dev','small','practice','final','compare')][string]$Action = 'dev', [ValidatePattern('^[a-zA-Z0-9-]+$')][string]$Run = 'default', [string]$Image = 'shopping-sessions:latest')
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $root = (Resolve-Path "$PSScriptRoot/..").Path
@@ -21,12 +21,10 @@ try {
     } else {
         $folder = New-Item -Force -ItemType Directory ".local/out-$Action$suffix"
         $source = if ($Action -in @("practice","final")) { "shopping-buildathon-$Action" } else { "${root}/.local/${Action}" }
-        git rev-parse HEAD
-        docker image inspect shopping-sessions --format 'image={{.Id}} bytes={{.Size}}'
+        "checkout=$(git rev-parse HEAD)"
+        docker image inspect $Image --format 'image={{.Id}} bytes={{.Size}}'
         $watch = [Diagnostics.Stopwatch]::StartNew()
-        docker run @limits -v "${source}:/data:ro" -v "${folder}:/output" shopping-sessions
+        docker run @limits -v "${source}:/data:ro" -v "${folder}:/output" $Image
         "container wall {0:N3}s" -f $watch.Elapsed.TotalSeconds
     }
 } finally { Pop-Location }
-
-
