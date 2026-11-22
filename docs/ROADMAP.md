@@ -41,3 +41,7 @@ Separate control timings identified parsing and partitioning as the largest even
 ## Buffered delimiter index
 
 Delimiter handling, including line reading and copying, was the largest of the three measured event parser costs on both scales. The buffered reader and compact partition metadata reduced local median runtime from 12.5985 s to 10.8985 s on practice and from 31.872 s to 29.8255 s at final scale. All official local checks and all twelve large output comparisons passed. Official practice improved from 7.6800 s to 7.4790 s. Use the buffered delimiter revision as the next control and refresh end-to-end stage timings before choosing another optimization.
+
+## Per-person attribution
+
+Click attribution was the largest top-level stage at both scales on the 7.4790 s release. Parallel attribution within the existing canonical-person partitions reduced end-to-end medians on the supplied practice and final volumes by 9.8% and 13.9%. The current-generator practice median fell 15.7%. Both official dev datasets and all sixteen large differential comparisons passed. Use ba1c45ec10eb2051ff7913d88c1c84f932978f63 for the next practice submission. Profile remaining session labeling and identity-resolution work on current-generator data before selecting the next optimization.

@@ -2,7 +2,7 @@
 
 ## Best available submission
 
-**Selected local SHA:** `6832e74c86b7c7e611bebeb41f2ca33e544464f1`. The buffered delimiter index passed the public checks and all twelve paired output comparisons. Local median wall times were 10.8985 s on practice and 29.8255 s at final scale. Its official practice score of 7.4790 s is the best reported result.
+**Selected local SHA:** `ba1c45ec10eb2051ff7913d88c1c84f932978f63`. In-memory per-person attribution passed the public fixtures, both versions of the official dev checks, and all sixteen paired large output comparisons. Local medians on the original volumes were 5.2575 s on practice and 13.8910 s at final scale. Current-generator practice median was 5.392 s. Official score pending. The best reported official practice score is 7.4790 s for `6832e74c86b7c7e611bebeb41f2ca33e544464f1`.
 
 Run `git rev-parse best-verified` for the selected local submission SHA. BENCHMARKS.md records the implementation, local verification and measurements. Each tested implementation remains in the history of main. The development checkout may contain subsequent ledger or benchmark updates.
 
@@ -51,4 +51,5 @@ All revisions below passed the official local fixtures and dev comparison. BENCH
 | 0cdcdc9cacfe0ad20489568b7645917acabd7f3a | Shared identity index. Official practice score, 7.6800 s. |
 | a450e7a86d4d75ca4013e32650ae0cddbd7b73f1 | Block event scanner. Passed public and large checks. Slower on practice. Local experiment. |
 | e901b8c968b58689388ae02879581efdec222307 | Raw-range event partitions. Passed public and large checks. Slower on both scales. Local experiment. |
-| 6832e74c86b7c7e611bebeb41f2ca33e544464f1 | Best verified local release. Buffered delimiter index. Best official practice score, 7.4790 s. |
+| 6832e74c86b7c7e611bebeb41f2ca33e544464f1 | Buffered delimiter index. Best official practice score, 7.4790 s. |
+| ba1c45ec10eb2051ff7913d88c1c84f932978f63 | Best verified local release. In-memory per-person attribution. Official practice score pending. |

@@ -283,3 +283,46 @@ The scored control image was 20e685a6c5c8 and the candidate Git-archive image wa
 
 End-to-end median runtime fell 13.5% on practice and 6.4% at final scale. All 36 official fixtures passed. Both official dev schemas and all 117,038 user/day and 27,400 campaign/day rows matched with zero duplicate keys. Both daily outputs matched the control in both directions with EXCEPT ALL in all twelve large pairs, and session, revenue and assist checks passed. A separate intermediate comparison matched 19,535,163 validated practice winner rows including multiplicities. A targeted collision check confirmed distinct event IDs with the same 32-bit hash remain separate and that an invalid earliest copy suppresses only its own ID. The owner reported 7.4790 s on official practice. The 2.62% improvement over 7.6800 s was smaller than the 13.5% reduction in the paired local practice benchmark.
 The candidate won five of six full-pipeline pairs at each scale. Its median event deduplication and validation stage fell from 2.9500 to 1.7945 s on practice and from 6.844 to 4.831 s at final scale. Peak container memory across the final-scale runs was 10,068,660,224 bytes for the candidate and 10,267,873,280 bytes for the control.
+
+## Full pipeline profile and in-memory click attribution
+
+The control is 6832e74c86b7c7e611bebeb41f2ca33e544464f1, scored at 7.4790 s on official practice. The stage probe wrapped the scored Python entry point with monotonic timers and measured process and child CPU seconds. CPU seconds divided by elapsed seconds estimates average logical CPUs used within each stage. Three sequential runs at each scale used 8 CPUs, 24 GiB, the original seed-23 practice and seed-42 final inputs, and a fresh container and scratch each time. Times and CPU utilization are separate medians. Click preparation, timeline export and the sweep are nested under attribution. The two Parquet writes are nested under daily outputs. The output timers include execution of their lazy views. Container startup and cleanup are included in the end-to-end benchmark.
+
+| Control stage | Practice seconds | Practice CPUs | Final seconds | Final CPUs |
+|---|---:|---:|---:|---:|
+| identity resolution and lookup table | 0.361 | 0.98 | 1.67 | 1 |
+| dimension CSV preparation | 0.007 | 0.71 | 0.006 | 0.83 |
+| event dedup and validation | 1.024 | 7.69 | 2.895 | 7.75 |
+| session labeling | 1.15 | 7.06 | 4.468 | 7.51 |
+| per-session aggregation | 0.278 | 7.81 | 0.74 | 7.81 |
+| clicks and attribution | 1.697 | 6.69 | 5.094 | 7.41 |
+| native click preparation and timeline joins | 0.472 | 4.86 | 1.337 | 6.74 |
+| sort and export timeline | 0.924 | 7.49 | 2.841 | 7.76 |
+| timeline sweep | 0.295 | 7.21 | 0.913 | 7.63 |
+| daily outputs | 0.614 | 3.67 | 1.811 | 4.34 |
+| user_daily | 0.585 | 3.78 | 1.779 | 4.4 |
+| campaign_daily | 0.027 | 1.61 | 0.029 | 1.64 |
+
+Click attribution was the largest stage on both scales. The scored implementation globally sorted the combined session/click timeline and exported it to CSV. Candidate ba1c45ec10eb2051ff7913d88c1c84f932978f63 routes clicks to the same 256 canonical-person partitions already used for session labels. Each worker sorts clicks within each person and sweeps their sessions in time order. It accumulates campaign/day totals in memory, then the workers merge their totals. The seven-day window includes both endpoints. A bytewise click-ID tie break, per-campaign active counts, and organic fallback preserve credit and assist semantics.
+
+The paired release benchmarks used image 0bae5bf8f3fc for the control and the archived Git revision built as image 740fb53a9809 for the candidate. Run scripts/local.ps1 for each image on the same named volume, with fresh scratch space and distinct output folders. Alternate control-first and candidate-first for six pairs at each scale. Container wall time includes startup, all computation, both Parquet writes, and exit.
+
+| Supplied generator, container wall seconds | Practice control | Practice candidate | Final control | Final candidate |
+|---|---:|---:|---:|---:|
+| Pair 1 | 5.858 | 5.221 | 18.370 | 17.354 |
+| Pair 2 | 6.079 | 5.700 | 15.733 | 15.300 |
+| Pair 3 | 5.766 | 5.114 | 16.273 | 14.159 |
+| Pair 4 | 5.624 | 5.294 | 16.012 | 12.852 |
+| Pair 5 | 5.859 | 5.539 | 16.415 | 13.530 |
+| Pair 6 | 5.794 | 5.201 | 15.336 | 13.623 |
+| Median | 5.8260 | 5.2575 | 16.1425 | 13.8910 |
+
+All twelve pairs favored the candidate. Attribution medians fell from 1.7565 to 1.1565 seconds on practice and 4.935 to 2.537 seconds at final scale. End-to-end medians fell 9.8% and 13.9% respectively. Maximum final-scale container memory was 10,312,753,152 bytes for the candidate and 10,167,291,904 bytes for the control. Both daily tables matched by two-way EXCEPT ALL in all twelve pairs, and session, revenue and assist checks passed.
+
+On November 22 the organizer listed scorer shopping-sessions-5 and a revised generator with variable-length opaque IDs. The original supplied fixtures, generator and dev references remain the comparison set above. The candidate passed all 36 fixtures and matched all 117,038 user/day and 27,400 campaign/day rows in the supplied dev references.
+
+For the current official dev check, build the generator from the track page with Rust 1.85 and generate seed 1 with 1M events and 250k clicks. The official checker matched all 118,107 user/day and 27,449 campaign/day rows with zero duplicate keys. The downloaded generator ZIP has SHA-256 78f973f75d14b48e792628284f19c75de71fa597d20952e16a9ced93c78bee4a. The dev-answer ZIP has SHA-256 c2439e0e2e7456d721852814e9928e077648803d5c57a1760a40c7d3b0864d20. [Organizer track and downloads](https://www.joinbuilders.org/buildathon/tracks/shopping-sessions)
+
+For current-generator practice, generate seed 23 with 20M events and 5M clicks, and run four pairs in AB, BA, AB, BA order under the same container limits. Control wall times were 7.020, 6.541, 6.245 and 5.601 s. Candidate times were 5.892, 5.442, 5.342 and 4.888 s. The median fell from 6.393 to 5.392 s (15.7%). Both daily outputs matched in all four pairs. Candidate official score pending.
+
+A separate worker-count experiment ran the scored control on the current seed-23 practice volume. Both the CPU quota and NCPU were set to 1, 4, 8, 8, 4, 1 in sequence, with all other limits unchanged. Median start-to-exit times from the two runs per setting were 23.6125 s, 7.6365 s and 5.5570 s respectively. Eight workers gave a 4.25x end-to-end speedup over one. The organizer limits every submission to eight pinned vCPUs. The public board showed a leading time of 0.4293 s when checked, without implementation details that would identify the team's strategy. [Official track and board](https://www.joinbuilders.org/buildathon/tracks/shopping-sessions)
