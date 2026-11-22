@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 import duckdb
-from events import EventBatches
+from events import ClickBatches, EventBatches
 
 
 @contextmanager
@@ -47,12 +47,11 @@ def run(data, output, work):
     with stage("identity resolution and lookup table"):
         path = work / "people.csv"
         subprocess.run(["/app/identity", data / "links", path], check=True)
-        execute("create table people as select * from " + relation(path, "uid person"))
-    with stage("click and dimension CSV preparation"):
-        subprocess.run(["/app/clean", data, work], check=True,
-                       env=dict(os.environ, WINDOW_START=str(start), WINDOW_END=str(end)))
+
+    with stage("dimension CSV preparation"):
+        subprocess.run(["/app/clean", data, work], check=True)
+
         for table, fields in {
-            "clicks": "cid uid campaign ts",
             "products": "product category",
             "campaigns": "campaign channel",
         }.items():
@@ -88,17 +87,24 @@ def run(data, output, work):
         timeline = work / "timeline.csv"
         totals = work / "totals.csv"
         execute("create table codes as select *, row_number() over() as code from raw_campaigns")
+        code_path = work / "codes.csv"
+        execute(f"copy (select campaign, code from codes) to {literal(code_path)} (format csv, header false)")
+        with stage("native click preparation and timeline joins"):
+            clicks = ClickBatches(data / "clicks", work / "people.csv", code_path, start, end, workers)
+            con.register("prepared_clicks", clicks.table())
+            del clicks
         execute("set preserve_insertion_order=true")
         execute(f"""
           copy (
             select person,t,code,revenue from (
-              select coalesce(person,uid) as person, ts::bigint as t, code, 0 as revenue, cid
-              from raw_clicks join codes using(campaign) left join people using(uid)
+              select person, t, code, 0 as revenue, cid
+              from prepared_clicks
               union all
               select person, begin_ms, 0, revenue, null from sessions
             ) order by person, t, cid desc nulls last
           ) to {literal(timeline)} (format csv, header false)
         """)
+        con.unregister("prepared_clicks")
         subprocess.run(["/app/attribute", timeline, totals], check=True)
         source = relation(totals, "code days sessions purchasing_sessions revenue_cents assisted_sessions")
         execute(f"""

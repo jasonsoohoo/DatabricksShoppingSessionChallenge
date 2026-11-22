@@ -1,3 +1,4 @@
+mod clicks;
 mod csv;
 mod sessions;
 
@@ -32,7 +33,7 @@ fn offset(bytes: &[u8]) -> io::Result<u32> {
     u32::try_from(bytes.len()).map_err(|_| io::Error::other("event input chunk exceeds 4 GiB"))
 }
 
-fn parse_chunk(job: &(PathBuf, u64, u64), start: i64, end: i64) -> io::Result<Vec<Bucket>> {
+fn read_chunk(job: &(PathBuf, u64, u64), mut visit: impl FnMut(&[u8]) -> io::Result<()>) -> io::Result<()> {
     let (path, begin, limit) = job;
     let mut reader = BufReader::with_capacity(1 << 18, File::open(path)?);
     let mut pos = begin.saturating_sub(1);
@@ -40,7 +41,6 @@ fn parse_chunk(job: &(PathBuf, u64, u64), start: i64, end: i64) -> io::Result<Ve
     let mut line = Vec::new();
     // Skip the header, or the partial record preceding this chunk.
     pos += reader.read_until(b'\n', &mut line)? as u64;
-    let mut buckets: Vec<Bucket> = (0..PARTITIONS).map(|_| Bucket::default()).collect();
     while pos < *limit {
         line.clear();
         let size = reader.read_until(b'\n', &mut line)?;
@@ -48,12 +48,19 @@ fn parse_chunk(job: &(PathBuf, u64, u64), start: i64, end: i64) -> io::Result<Ve
             break;
         }
         pos += size as u64;
-        let raw = line.strip_suffix(b"\n").unwrap_or(&line);
+        visit(line.strip_suffix(b"\n").unwrap_or(&line))?;
+    }
+    Ok(())
+}
+
+fn parse_chunk(job: &(PathBuf, u64, u64), start: i64, end: i64) -> io::Result<Vec<Bucket>> {
+    let mut buckets: Vec<Bucket> = (0..PARTITIONS).map(|_| Bucket::default()).collect();
+    read_chunk(job, |raw| {
         let Some([id, user, ts, ingest, kind, product, price]) = csv::fields(raw) else {
-            continue;
+            return Ok(());
         };
         if id.is_empty() {
-            continue;
+            return Ok(());
         }
         let ingest = csv::millis(ingest).ok_or_else(|| io::Error::other("invalid ingest time"))?;
         let time = csv::millis(ts).filter(|&t| t >= start && t < end && ingest <= t + 86_400_000);
@@ -88,7 +95,8 @@ fn parse_chunk(job: &(PathBuf, u64, u64), start: i64, end: i64) -> io::Result<Ve
             user_end,
             end: offset(bytes)?,
         });
-    }
+        Ok(())
+    })?;
     Ok(buckets)
 }
 
@@ -182,7 +190,7 @@ fn parallel<T: Send>(count: usize, workers: usize, f: impl Fn(usize) -> T + Sync
     })
 }
 
-fn build(dir: &Path, start: i64, end: i64, workers: usize) -> io::Result<Vec<Batch>> {
+fn csv_jobs(dir: &Path) -> io::Result<Vec<(PathBuf, u64, u64)>> {
     let mut jobs = Vec::new();
     for entry in fs::read_dir(dir)? {
         let path = entry?.path();
@@ -194,6 +202,11 @@ fn build(dir: &Path, start: i64, end: i64, workers: usize) -> io::Result<Vec<Bat
             jobs.push((path.clone(), begin, len.min(begin + CHUNK)));
         }
     }
+    Ok(jobs)
+}
+
+fn build(dir: &Path, start: i64, end: i64, workers: usize) -> io::Result<Vec<Batch>> {
+    let jobs = csv_jobs(dir)?;
     let chunks = parallel(jobs.len(), workers, |i| parse_chunk(&jobs[i], start, end))
         .into_iter()
         .collect::<io::Result<Vec<_>>>()?;

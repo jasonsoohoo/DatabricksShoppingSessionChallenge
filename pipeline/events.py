@@ -1,4 +1,4 @@
-"""Expose Rust-owned winner columns to DuckDB through Arrow buffers."""
+"""Expose Rust-owned event and click columns to DuckDB through Arrow buffers."""
 import ctypes as ct
 import os
 
@@ -14,8 +14,8 @@ class Buffers(ct.Structure):
     ]
 
 
-class EventBatches:
-    def __init__(self, folder, start, end, workers):
+class NativeBatches:
+    def __init__(self):
         self.lib = ct.CDLL("/app/events.so")
         self.lib.events_open.argtypes = [ct.c_char_p, ct.c_int64, ct.c_int64, ct.c_size_t, ct.POINTER(ct.c_size_t)]
         self.lib.events_open.restype = ct.c_void_p
@@ -25,26 +25,12 @@ class EventBatches:
         self.lib.events_label.restype = ct.c_bool
         self.lib.events_close.argtypes = [ct.c_void_p]
         self.lib.events_close.restype = None
-        count = ct.c_size_t()
-        self.handle = self.lib.events_open(os.fsencode(folder), start, end, workers, ct.byref(count))
-        if not self.handle:
-            raise RuntimeError("native event reader failed")
-        self.count = count.value
-        self._exported = False
 
     def __del__(self):
         if getattr(self, "handle", None):
             self.lib.events_close(self.handle)
 
-    def labeled_table(self, people_path, workers):
-        # The Arrow buffers below borrow this handle. Never replace their storage
-        # after export, even if a caller retains the EventBatches object.
-        if self._exported:
-            raise RuntimeError("event batches were already exported")
-        self._exported = True
-        if not self.lib.events_label(self.handle, os.fsencode(people_path), workers):
-            raise RuntimeError("native session labeling failed")
-
+    def _table(self, names):
         chunks = []
         for index in range(self.count):
             b = Buffers()
@@ -59,5 +45,44 @@ class EventBatches:
                 pa.Array.from_buffers(pa.int64(), b.rows, [None, buffer(b.times, b.rows * 8)]),
                 pa.Array.from_buffers(pa.int32(), b.rows, [None, buffer(b.cents, b.rows * 4)]),
                 strings(b.product_offsets, b.products, b.product_bytes),
-            ], names=["person", "begin_ms", "cents", "product"]))
+            ], names=names))
         return pa.Table.from_batches(chunks)
+
+
+class EventBatches(NativeBatches):
+    def __init__(self, folder, start, end, workers):
+        super().__init__()
+        count = ct.c_size_t()
+        self.handle = self.lib.events_open(os.fsencode(folder), start, end, workers, ct.byref(count))
+        if not self.handle:
+            raise RuntimeError("native event reader failed")
+        self.count = count.value
+        self._exported = False
+
+    def labeled_table(self, people_path, workers):
+        # The Arrow buffers below borrow this handle. Never replace their storage
+        # after export, even if a caller retains the EventBatches object.
+        if self._exported:
+            raise RuntimeError("event batches were already exported")
+        self._exported = True
+        if not self.lib.events_label(self.handle, os.fsencode(people_path), workers):
+            raise RuntimeError("native session labeling failed")
+
+        return self._table(["person", "begin_ms", "cents", "product"])
+
+
+class ClickBatches(NativeBatches):
+    def __init__(self, folder, people, codes, start, end, workers):
+        super().__init__()
+        self.lib.clicks_open.argtypes = [ct.c_char_p] * 3 + [
+            ct.c_int64, ct.c_int64, ct.c_size_t, ct.POINTER(ct.c_size_t)]
+        self.lib.clicks_open.restype = ct.c_void_p
+        count = ct.c_size_t()
+        self.handle = self.lib.clicks_open(os.fsencode(folder), os.fsencode(people),
+            os.fsencode(codes), start, end, workers, ct.byref(count))
+        if not self.handle:
+            raise RuntimeError("native click reader failed")
+        self.count = count.value
+
+    def table(self):
+        return self._table(["person", "t", "code", "cid"])
