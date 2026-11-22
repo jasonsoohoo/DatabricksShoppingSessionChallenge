@@ -1,6 +1,6 @@
 # Pipeline
 
-1. Union-find resolves links before joins. Path compression and byte-wise minimum roots preserve names contributed by link-only IDs. Unlinked IDs fall back to their original bytes.
+1. The Rust identity reader interns byte slices from the link files and resolves their integer indices with union-find before joins. Path compression and byte-wise minimum roots preserve names contributed by link-only IDs. Unlinked IDs fall back to their original bytes.
 2. A std-only Rust reader scans LF-delimited byte records on up to NCPU workers, with line-aligned event input chunks. It checks the entire field layout before removing wrapping quotes and preserves CR in values. Timestamps use checked ASCII arithmetic and explicit Gregorian and offset limits.
 3. Event workers hash IDs into 256 in-memory partitions. Each retains exact ID bytes and normalized ingestion time, including invalid copies. Open-addressed tables compare keys byte for byte and select the earliest copy before removing invalid winners. Rust exposes the remaining user, product, time and price columns as Arrow buffers. DuckDB joins those buffers directly to the identity and product tables. Memory for this stage scales with input size. Unknown purchased products map to the literal unknown category.
 4. SQL orders events per canonical person. Lag identifies gaps over 30 minutes. A range window assigns the same start to equal timestamps. All aggregates use the UTC start date, including purchases after midnight.

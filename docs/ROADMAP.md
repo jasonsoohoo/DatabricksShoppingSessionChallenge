@@ -17,3 +17,7 @@ The experiment replaces the event scratch CSV and DuckDB DISTINCT ON step with i
 ## Parallel click attribution
 
 Completed the stage profile against the 17.14 s submission. The Rust sweep took 1.476 s of practice wall time, compared with 0.443 s for sort/materialization and 0.199 s for CSV export. Splitting the sweep between people reduced its median to 0.289 s. The new release passed the public checkers and exact comparisons at practice and final scale. Official practice fell from 17.14 s to 15.6507 s. Use the parallel sweep release as the control. Next, time identity resolution and CSV preparation separately. Together they took about 2.5 s on local practice, compared with 0.289 s for the optimized sweep.
+
+## Native identity resolution
+
+The separate practice profile measured 2.824 s for identity resolution and lookup loading, and 0.239 s for click and dimension CSV preparation. The native resolver reduced the identity median to 0.751 s. End-to-end practice and final-scale medians fell 21.8% and 18.6% against the 15.6507 s release. The complete lookup and both daily tables passed exact comparisons. Record the next official practice result against the selected SHA in SUBMISSIONS.md.

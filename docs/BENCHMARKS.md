@@ -110,3 +110,36 @@ Practice median elapsed time decreased 11.6%.
 | Median | 33.354 s | 27.912 s |
 
 Final-scale median elapsed time decreased 16.3%. Peak candidate cgroup memory across the final runs was 12,309,655,552 bytes under the 24 GiB limit. Bidirectional EXCEPT ALL comparisons of both Parquet tables and the cross-table accounting checks passed in every pair. Practice totals were 3,368,309 sessions and 6,155,929,657 cents. Final totals were 10,067,851 sessions and 20,418,435,163 cents. The owner reported 15.6507 s on official practice, down from 17.14 s. The 8.69% official reduction was about 2.9 percentage points smaller than the 11.6% local practice reduction. The hidden run provides no stage timings to isolate that difference.
+
+## Native identity resolution
+
+Control A was the 15.6507 s official submission, 9776571dedb150b32836d8e0c1a10d547181edb6 (image 026dbd050fe8). The control profile split the existing wall timer immediately after creation of the DuckDB people table. Identity includes reading links, computing components, writing the lookup CSV and loading that table. CSV preparation includes the existing click/product/campaign cleaner and creation of its three views. Event CSV parsing runs later in the event stage.
+
+| Control profile, practice seed 23 | Run 1 | Run 2 | Run 3 | Median |
+|---|---:|---:|---:|---:|
+| Identity resolution and lookup load | 3.610 s | 2.740 s | 2.824 s | 2.824 s |
+| Click and dimension CSV preparation | 0.254 s | 0.213 s | 0.239 s | 0.239 s |
+
+Candidate B (ae9ec3178f32c82c78e930a3b50944da3dcfc5a8) replaces the Python identity graph with a Rust executable. Its map interns exact ID slices from the link files into integer indices. Parent traversal and path compression use an array; each union selects the byte-wise smaller root. The executable releases its buffers after writing the canonical mapping. Identity memory scales with link-file bytes and the number of distinct linked IDs. The other CSV preparation code is unchanged.
+
+For the end-to-end comparison, each image ran in a fresh no-network Linux AMD64 container, with eight CPUs, 24 GiB RAM, no swap, and fresh scratch. The control used its scored image. The candidate was built without cache from its exact Git archive. Both used the same generated volume for each scale. Run order within each of the three pairs was AB, BA, AB.
+
+The public checks used the clean B image (e2b62e299797; 492,587,177 bytes). All 36 fixtures passed. Both dev tables matched the official schemas and all 117,038 user/day and 27,400 campaign/day rows, with zero duplicate keys. The separate lookup comparison uses the scored revision's identities and canonical_file functions on the same link inputs, loads both emitted mappings as two VARCHAR columns, and checks EXCEPT ALL in both directions. This includes linked IDs that never appear in the output tables.
+
+| Practice, seed 23 (20M events, 5M clicks) | A wall | B wall | B identity | B CSV preparation |
+|---|---:|---:|---:|---:|
+| Pair 1 | 14.254 s | 11.242 s | 0.715 s | 0.311 s |
+| Pair 2 | 16.020 s | 11.741 s | 0.751 s | 0.323 s |
+| Pair 3 | 15.008 s | 12.408 s | 0.853 s | 0.332 s |
+| Median | 15.008 s | 11.741 s | 0.751 s | 0.323 s |
+
+The practice end-to-end median fell 21.8%. The separately profiled control identity median was 2.824 s, versus 0.751 s for B. Absolute times for unrelated stages varied across the profiling and paired runs. Use the fresh paired control for the end-to-end comparison.
+
+| Final scale, seed 42 (60M events, 15M clicks) | A wall | B wall |
+|---|---:|---:|
+| Pair 1 | 44.210 s | 34.804 s |
+| Pair 2 | 44.073 s | 39.157 s |
+| Pair 3 | 44.067 s | 35.892 s |
+| Median | 44.073 s | 35.892 s |
+
+Final-scale elapsed time decreased 18.6%. Peak B container memory across these runs was 12,327,649,280 bytes, within the 24 GiB limit. Both identity maps matched exactly: 1,195,420 IDs in 383,629 components on practice; 3,594,075 IDs in 1,149,399 components on final scale. Both Parquet tables matched in both directions with EXCEPT ALL in all six pairs, and the cross-table accounting checks passed. Practice reconciled to 3,368,309 sessions and 6,155,929,657 cents; final scale reconciled to 10,067,851 sessions and 20,418,435,163 cents. B has no official score yet.
