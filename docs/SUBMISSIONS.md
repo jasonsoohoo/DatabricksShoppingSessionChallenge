@@ -2,7 +2,7 @@
 
 ## Best available submission
 
-**Selected local SHA:** `ba1c45ec10eb2051ff7913d88c1c84f932978f63`. In-memory per-person attribution passed the public fixtures, both versions of the official dev checks, and all sixteen paired large output comparisons. Local medians on the original volumes were 5.2575 s on practice and 13.8910 s at final scale. Current-generator practice median was 5.392 s. Official score pending. The best reported official practice score is 7.4790 s for `6832e74c86b7c7e611bebeb41f2ca33e544464f1`.
+**Selected local SHA:** `ba1c45ec10eb2051ff7913d88c1c84f932978f63`. In-memory per-person attribution passed the public fixtures, both versions of the official dev checks, and all sixteen paired large output comparisons. Local medians on the original volumes were 5.2575 s on practice and 13.8910 s at final scale. Current-generator practice median was 5.392 s. Its official practice score of 6.2805 s is the best reported result.
 
 Run `git rev-parse best-verified` for the selected local submission SHA. BENCHMARKS.md records the implementation, local verification and measurements. Each tested implementation remains in the history of main. The development checkout may contain subsequent ledger or benchmark updates.
 
@@ -24,6 +24,8 @@ Attempt 7, reported by the owner on 2026-11-22, scored **7.6800 s** on official 
 
 Attempt 8, reported by the owner on 2026-11-22, scored **7.4790 s** on official practice for `6832e74c86b7c7e611bebeb41f2ca33e544464f1`. Runtime fell by 0.2010 s (2.62%) from attempt 7 and by 17.5010 s from the first run of 24.98 s.
 
+Attempt 9, reported by the owner on 2026-11-22, scored **6.2805 s** on official practice for `ba1c45ec10eb2051ff7913d88c1c84f932978f63`. Runtime fell by 1.1985 s (16.02%) from attempt 8 and by 74.86% from the first run of 24.98 s.
+
 ## Manual hand-in
 
 Before the cutoff, the owner publishes the repository to public GitHub, including the selected commit and all previously submitted commits. On the Shopping Sessions track, enter the public repository URL and exact SHA, then submit. Check that the selected final revision is fetchable. Keep the public history through publication of results. Report the SHA, scorer version, score or failure, and timestamp here after each official attempt. Update the best official SHA only when the scorer confirms a better result.
@@ -32,7 +34,7 @@ The starter team metadata is blank. Supply actual team details if used for regis
 
 ## Recoverable local candidates
 
-All revisions below passed the official local fixtures and dev comparison. BENCHMARKS.md records their runs and resource measurements. The buffered delimiter index release holds our best official score of 7.4790 s.
+All revisions below passed the official local fixtures and dev comparison. BENCHMARKS.md records their runs and resource measurements. The per-person attribution release holds our best official score of 6.2805 s.
 
 | SHA | Implementation and status |
 |---|---|
@@ -51,5 +53,5 @@ All revisions below passed the official local fixtures and dev comparison. BENCH
 | 0cdcdc9cacfe0ad20489568b7645917acabd7f3a | Shared identity index. Official practice score, 7.6800 s. |
 | a450e7a86d4d75ca4013e32650ae0cddbd7b73f1 | Block event scanner. Passed public and large checks. Slower on practice. Local experiment. |
 | e901b8c968b58689388ae02879581efdec222307 | Raw-range event partitions. Passed public and large checks. Slower on both scales. Local experiment. |
-| 6832e74c86b7c7e611bebeb41f2ca33e544464f1 | Buffered delimiter index. Best official practice score, 7.4790 s. |
-| ba1c45ec10eb2051ff7913d88c1c84f932978f63 | Best verified local release. In-memory per-person attribution. Official practice score pending. |
+| 6832e74c86b7c7e611bebeb41f2ca33e544464f1 | Buffered delimiter index. Official practice score, 7.4790 s. |
+| ba1c45ec10eb2051ff7913d88c1c84f932978f63 | Best verified local release. In-memory per-person attribution. Best official practice score, 6.2805 s. |
