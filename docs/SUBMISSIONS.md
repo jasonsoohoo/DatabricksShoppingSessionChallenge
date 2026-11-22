@@ -2,7 +2,7 @@
 
 ## Best available submission
 
-**Selected local SHA:** `edd24d4f9f43317c69c33f02416a14231ab53f26`. The clean build passed 36/36 fixtures and both official dev comparisons. Both daily outputs matched the control across all six large pairs. All intermediate labeled-event and session rows also matched on practice. Local medians were 5.363 s on practice and 19.316 s on final scale. Official score pending. The best official practice score remains 13.3325 s for `ae9ec3178f32c82c78e930a3b50944da3dcfc5a8`.
+**Selected local SHA:** `edd24d4f9f43317c69c33f02416a14231ab53f26`. The clean build passed 36/36 fixtures and both official dev comparisons. Both daily outputs matched the control across all six large pairs. All intermediate labeled-event and session rows also matched on practice. Local medians were 5.363 s on practice and 19.316 s on final scale. Its official practice score of 8.8148 s is our best to date.
 
 Run `git rev-parse best-verified` for the selected local submission SHA. BENCHMARKS.md records the implementation, local verification and measurements. Each tested implementation remains in the history of main. The development checkout may contain subsequent ledger or benchmark updates.
 
@@ -14,7 +14,9 @@ Attempt 2, reported by the owner on 2026-11-21, scored **17.14 s** on official p
 
 Attempt 3, reported by the owner on 2026-11-21, scored **15.6507 s** on official practice for `9776571dedb150b32836d8e0c1a10d547181edb6`. This reduced runtime by 1.4893 s (8.69%) from attempt 2.
 
-Attempt 4, reported by the owner on 2026-11-21, scored **13.3325 s** on official practice for `ae9ec3178f32c82c78e930a3b50944da3dcfc5a8`. It improved on attempt 3 by 2.3182 s (14.81%) and is our best official result.
+Attempt 4, reported by the owner on 2026-11-21, scored **13.3325 s** on official practice for `ae9ec3178f32c82c78e930a3b50944da3dcfc5a8`. It improved on attempt 3 by 2.3182 s (14.81%).
+
+Attempt 5, reported by the owner on 2026-11-21, scored **8.8148 s** on official practice for `edd24d4f9f43317c69c33f02416a14231ab53f26`. This is our best official result, 4.5177 s (33.88%) below attempt 4.
 
 ## Manual hand-in
 
@@ -24,7 +26,7 @@ The starter team metadata is blank. Supply actual team details if used for regis
 
 ## Recoverable local candidates
 
-All revisions below passed the official local fixtures and dev comparison. BENCHMARKS.md records their runs and resource measurements. The native identity release holds our best official score of 13.3325 s.
+All revisions below passed the official local fixtures and dev comparison. BENCHMARKS.md records their runs and resource measurements. The native session labeling release holds our best official score of 8.8148 s.
 
 | SHA | Implementation and status |
 |---|---|
@@ -37,5 +39,5 @@ All revisions below passed the official local fixtures and dev comparison. BENCH
 | eb3762be83c1b0ee58826a8d674070f3a87fcf30 | First official release. Official practice 24.98 s. |
 | c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50 | Native event partitions and Arrow buffers. Official practice score, 17.14 s. |
 | 9776571dedb150b32836d8e0c1a10d547181edb6 | Parallel attribution sweep. Official practice score, 15.6507 s. |
-| ae9ec3178f32c82c78e930a3b50944da3dcfc5a8 | Native identity resolution. Best official practice score, 13.3325 s. |
-| edd24d4f9f43317c69c33f02416a14231ab53f26 | Best verified local release. Native session labeling. Awaiting official score. |
+| ae9ec3178f32c82c78e930a3b50944da3dcfc5a8 | Native identity resolution. Official practice score, 13.3325 s. |
+| edd24d4f9f43317c69c33f02416a14231ab53f26 | Best verified local release. Native session labeling. Best official practice score, 8.8148 s. |

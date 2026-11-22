@@ -6,7 +6,7 @@
 | M1 correctness | Complete | Both output schemas and every expected row pass the official local fixture and seed-1 dev checkers. |
 | M2 benchmarking | Complete | Four reproducible input scales. Docker entry point reports stage timings, CPU and memory. Local runner records wall time, revision and image size. |
 | M3 optimization | Complete for this candidate | Native CSV and timestamp parsing, bounded event dedup and sliding-window attribution. Recoverable revisions and observed performance in BENCHMARKS.md. |
-| M4 hand-in | Fourth official practice run scored 13.3325 s | Native identity release passed the official local checks. Three final-scale outputs exactly matched the third submission. Local median 35.892 s. Submission SHA in SUBMISSIONS.md. |
+| M4 hand-in | Fifth official practice run scored 8.8148 s | Native session labeling passed the official local checks. Three final-scale outputs exactly matched the fourth submission. Local median 19.316 s. Submission SHA in SUBMISSIONS.md. |
 
 The owner handles publication and scorer submission. Record each reported official score against its exact SHA, update the best official result, and use the hidden-run timing to prioritize the next experiment. The official dataset, scorer hardware and hidden results are unavailable locally.
 
@@ -24,4 +24,4 @@ The separate practice profile measured 2.824 s for identity resolution and looku
 
 ## Native session labeling
 
-The session labeler took 2.264 s on local practice versus 0.162 s for per-session aggregation. Native per-person sorting and scanning reduced end-to-end median runtime by 22.9% on practice and 17.0% on final scale. All public checks, the six paired output comparisons and a full practice comparison of the intermediate tables passed. The submission register identifies the verified candidate for the next official measurement.
+The session labeler took 2.264 s on local practice versus 0.162 s for per-session aggregation. Native per-person sorting and scanning reduced end-to-end median runtime by 22.9% on practice and 17.0% on final scale. All public checks, the six paired output comparisons and a full practice comparison of the intermediate tables passed. The official practice score fell to 8.8148 s. Use this revision as the next control. Reprofile click preparation, the timeline join and sort, CSV export, and the parallel sweep on this revision before selecting the next change. The combined clicks and attribution stage took 6.391 s in the median local final-scale run.
