@@ -43,6 +43,7 @@ def run(data, output, work):
     start, end = [int(datetime.fromisoformat(manifest[k]).timestamp()) * 1000
                   for k in ("window_start", "window_end")]
     execute = con.execute
+    workers = int(os.getenv("NCPU", "8"))
     with stage("identity resolution and lookup table"):
         path = work / "people.csv"
         subprocess.run(["/app/identity", data / "links", path], check=True)
@@ -59,37 +60,29 @@ def run(data, output, work):
             execute(f"create view raw_{table} as select * from " + relation(path, fields))
 
     with stage("event dedup and validation"):
-        events = EventBatches(data / "events", start, end, int(os.getenv("NCPU", "8"))).table()
-        con.register("event_winners", events)
+        winners = EventBatches(data / "events", start, end, workers)
+    with stage("session labeling"):
+        con.register("labeled", winners.labeled_table(work / "people.csv", workers))
+        del winners
+    with stage("per-session aggregation"):
         execute("""
-          create table valid as
-          select coalesce(person, uid) as person, t, cents,
-                 case when cents>0 then coalesce(category,'unknown') end as category
-          from event_winners left join people using(uid) left join raw_products using(product)
-        """)
-        con.unregister("event_winners")
-        del events
-    with stage("sessions and user daily"):
-        execute("""
-        create table labeled as
-        with gaps as (
-          select *, lag(t) over(partition by person order by t) as prev from valid
-        )
-        select person, cents, category, max(case when prev is null or t-prev>1800000 then t end)
-          over(partition by person order by t range unbounded preceding) as begin_ms from gaps;
-        drop table valid;
         create table sessions as select person, begin_ms, epoch_ms(begin_ms)::date as day,
           count(*) as events, sum(cents)::bigint as revenue
           from labeled group by person,begin_ms;
+        """)
+    execute("""
         create view user_daily as
         with categories as (
-          select person, epoch_ms(begin_ms)::date as day, category, sum(cents) as total
-          from labeled where cents>0 group by person, day, category
+          select person, epoch_ms(begin_ms)::date as day, coalesce(category, 'unknown') as category, sum(cents) as total
+          from labeled left join raw_products using(product) where cents>0
+          group by person, day, coalesce(category, 'unknown')
+        ), top_categories as (
+          select person, day, category from categories
           qualify row_number() over(partition by person,day order by total desc, category)=1
         )
         select person as user_id, day, count(*) as sessions, sum(events)::bigint as events,
                sum(revenue)::bigint as revenue_cents, max(category) as top_category
-        from sessions left join categories using(person, day) group by person,day;
+        from sessions left join top_categories using(person, day) group by person,day;
         """)
     with stage("clicks and attribution"):
         timeline = work / "timeline.csv"

@@ -21,6 +21,8 @@ class EventBatches:
         self.lib.events_open.restype = ct.c_void_p
         self.lib.events_batch.argtypes = [ct.c_void_p, ct.c_size_t, ct.POINTER(Buffers)]
         self.lib.events_batch.restype = None
+        self.lib.events_label.argtypes = [ct.c_void_p, ct.c_char_p, ct.c_size_t]
+        self.lib.events_label.restype = ct.c_bool
         self.lib.events_close.argtypes = [ct.c_void_p]
         self.lib.events_close.restype = None
         count = ct.c_size_t()
@@ -28,12 +30,21 @@ class EventBatches:
         if not self.handle:
             raise RuntimeError("native event reader failed")
         self.count = count.value
+        self._exported = False
 
     def __del__(self):
         if getattr(self, "handle", None):
             self.lib.events_close(self.handle)
 
-    def table(self):
+    def labeled_table(self, people_path, workers):
+        # The Arrow buffers below borrow this handle. Never replace their storage
+        # after export, even if a caller retains the EventBatches object.
+        if self._exported:
+            raise RuntimeError("event batches were already exported")
+        self._exported = True
+        if not self.lib.events_label(self.handle, os.fsencode(people_path), workers):
+            raise RuntimeError("native session labeling failed")
+
         chunks = []
         for index in range(self.count):
             b = Buffers()
@@ -48,5 +59,5 @@ class EventBatches:
                 pa.Array.from_buffers(pa.int64(), b.rows, [None, buffer(b.times, b.rows * 8)]),
                 pa.Array.from_buffers(pa.int32(), b.rows, [None, buffer(b.cents, b.rows * 4)]),
                 strings(b.product_offsets, b.products, b.product_bytes),
-            ], names=["uid", "t", "cents", "product"]))
+            ], names=["person", "begin_ms", "cents", "product"]))
         return pa.Table.from_batches(chunks)

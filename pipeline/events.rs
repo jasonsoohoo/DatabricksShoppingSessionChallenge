@@ -1,4 +1,5 @@
 mod csv;
+mod sessions;
 
 use std::ffi::{CStr, c_char};
 use std::fs::{self, File};

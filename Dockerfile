@@ -2,7 +2,7 @@
 # The scorers are linux/amd64 (Intel Xeon). They build this file natively, so
 # no FROM line pins a platform: `make build` builds for linux/amd64 anywhere.
 FROM rust:1.85-bookworm@sha256:e51d0265072d2d9d5d320f6a44dde6b9ef13653b035098febd68cce8fa7c0bc4 AS compiler
-COPY pipeline/clean.rs pipeline/csv.rs pipeline/events.rs /tmp/
+COPY pipeline/clean.rs pipeline/csv.rs pipeline/events.rs pipeline/sessions.rs /tmp/
 RUN rustc -O --edition 2024 --crate-type cdylib /tmp/events.rs -o /events.so
 RUN rustc -O --edition 2024 /tmp/clean.rs -o /clean
 
