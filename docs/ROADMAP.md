@@ -10,6 +10,6 @@
 
 The owner handles publication and scorer submission. Record each reported official score against its exact SHA, update the best official result, and use the hidden-run timing to prioritize the next experiment. The official dataset, scorer hardware and hidden results are unavailable locally.
 
-## Next performance experiment
+## Native event-ID partition experiment
 
-Keep the scored SHA as the control. On its seed-23 practice run, CSV and identity preparation took 3.946 s and event deduplication and validation took 6.874 s out of 17.608 s end to end. Prioritize a native event-ID partition experiment that eliminates the intermediate CSV write and SQL reparse. Compare identical inputs and limits, check both tables against the control, and require all fixtures and the official dev comparison before promoting a candidate. The reported leader is about 92.5 times faster by elapsed time; even eliminating both measured stages would leave roughly 6.8 s locally.
+The experiment replaces the event scratch CSV and DuckDB DISTINCT ON step with in-memory, full-key deduplication and typed Arrow columns. The scored release is the comparison control. The native clean build passed the 36 fixtures and matched both public dev tables. Three local seed-23 runs reduced median wall time from 15.643 s to 10.115 s. Three final-scale runs reduced the median from 48.255 s to 33.265 s. Both large tables matched the scored release in all six comparisons. BENCHMARKS.md records the head-to-head results, including final-scale memory and the large differential comparisons. The next useful external measurement is the official hidden practice score for the candidate.

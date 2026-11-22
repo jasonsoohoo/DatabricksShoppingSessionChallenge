@@ -6,3 +6,4 @@
 - Partition by event ID before selecting winners. The unpartitioned query reached DuckDB’s 16 GiB limit on the 60M-event input. Hashes choose a partition only. The database still compares complete IDs.
 - Use actual generated final-scale runs to select candidates. Short dev runs are dominated by startup and filesystem variation. Preserve larger outputs for differential checks where official answers are unavailable.
 - Replace the SQL session/click range join with a time-ordered sweep. The 20M-event run dropped from 22.107 to 15.072 seconds. This also avoids building a table proportional to the number of qualifying session/click pairs.
+- Move exact event-ID comparison into Rust and share winner columns with DuckDB through Arrow. The native stage holds its partitions in RAM. Check final-scale memory and full output equality on every material change to the layout.
