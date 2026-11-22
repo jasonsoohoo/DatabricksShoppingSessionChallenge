@@ -2,7 +2,7 @@
 
 ## Best available submission
 
-**Selected local SHA:** `a44693d5344aa3b83303b8e6929c168075c7e828`. Native click joins passed 36/36 fixtures, both official dev comparisons and six paired large output comparisons. Local median wall times were 5.396 s on practice and 14.677 s at final scale. Official score pending. The best official practice score remains 8.8148 s for `edd24d4f9f43317c69c33f02416a14231ab53f26`.
+**Selected local SHA:** `a44693d5344aa3b83303b8e6929c168075c7e828`. Native click joins passed 36/36 fixtures, both official dev comparisons and six paired large output comparisons. Local median wall times were 5.396 s on practice and 14.677 s at final scale. Its official practice score of 8.7559 s is our best reported result.
 
 Run `git rev-parse best-verified` for the selected local submission SHA. BENCHMARKS.md records the implementation, local verification and measurements. Each tested implementation remains in the history of main. The development checkout may contain subsequent ledger or benchmark updates.
 
@@ -16,7 +16,9 @@ Attempt 3, reported by the owner on 2026-11-21, scored **15.6507 s** on official
 
 Attempt 4, reported by the owner on 2026-11-21, scored **13.3325 s** on official practice for `ae9ec3178f32c82c78e930a3b50944da3dcfc5a8`. It improved on attempt 3 by 2.3182 s (14.81%).
 
-Attempt 5, reported by the owner on 2026-11-21, scored **8.8148 s** on official practice for `edd24d4f9f43317c69c33f02416a14231ab53f26`. This is our best official result, 4.5177 s (33.88%) below attempt 4.
+Attempt 5, reported by the owner on 2026-11-21, scored **8.8148 s** on official practice for `edd24d4f9f43317c69c33f02416a14231ab53f26`. This was 4.5177 s (33.88%) below attempt 4.
+
+Attempt 6, reported by the owner on 2026-11-21, scored **8.7559 s** on official practice for `a44693d5344aa3b83303b8e6929c168075c7e828`. This is 0.0589 s (0.67%) below attempt 5 and 64.95% below the first run of 24.98 s.
 
 ## Manual hand-in
 
@@ -26,7 +28,7 @@ The starter team metadata is blank. Supply actual team details if used for regis
 
 ## Recoverable local candidates
 
-All revisions below passed the official local fixtures and dev comparison. BENCHMARKS.md records their runs and resource measurements. The native session labeling release holds our best official score of 8.8148 s.
+All revisions below passed the official local fixtures and dev comparison. BENCHMARKS.md records their runs and resource measurements. The native click joins release holds our best official score of 8.7559 s.
 
 | SHA | Implementation and status |
 |---|---|
@@ -40,5 +42,5 @@ All revisions below passed the official local fixtures and dev comparison. BENCH
 | c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50 | Native event partitions and Arrow buffers. Official practice score, 17.14 s. |
 | 9776571dedb150b32836d8e0c1a10d547181edb6 | Parallel attribution sweep. Official practice score, 15.6507 s. |
 | ae9ec3178f32c82c78e930a3b50944da3dcfc5a8 | Native identity resolution. Official practice score, 13.3325 s. |
-| edd24d4f9f43317c69c33f02416a14231ab53f26 | Native session labeling. Best official practice score, 8.8148 s. |
-| a44693d5344aa3b83303b8e6929c168075c7e828 | Best verified local release. Native click timeline joins. Official practice score pending. |
+| edd24d4f9f43317c69c33f02416a14231ab53f26 | Native session labeling. Official practice score, 8.8148 s. |
+| a44693d5344aa3b83303b8e6929c168075c7e828 | Best verified local release. Native click timeline joins. Best official practice score, 8.7559 s. |

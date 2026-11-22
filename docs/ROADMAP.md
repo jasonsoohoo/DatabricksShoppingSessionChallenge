@@ -6,7 +6,7 @@
 | M1 correctness | Complete | Both output schemas and every expected row pass the official local fixture and seed-1 dev checkers. |
 | M2 benchmarking | Complete | Four reproducible input scales. Docker entry point reports stage timings, CPU and memory. Local runner records wall time, revision and image size. |
 | M3 optimization | Complete for this candidate | Native CSV and timestamp parsing, bounded event dedup and sliding-window attribution. Recoverable revisions and observed performance in BENCHMARKS.md. |
-| M4 hand-in | Fifth official practice run scored 8.8148 s | Native session labeling passed the official local checks. Three final-scale outputs exactly matched the fourth submission. Local median 19.316 s. Submission SHA in SUBMISSIONS.md. |
+| M4 hand-in | Sixth official practice run scored 8.7559 s | Native click joins passed the public checks and all six paired comparisons. Final-scale local median was 14.677 s. Submission SHA in SUBMISSIONS.md. |
 
 The owner handles publication and scorer submission. Record each reported official score against its exact SHA, update the best official result, and use the hidden-run timing to prioritize the next experiment. The official dataset, scorer hardware and hidden results are unavailable locally.
 
@@ -28,4 +28,4 @@ The session labeler took 2.264 s on local practice versus 0.162 s for per-sessio
 
 ## Native click timeline joins
 
-The timeline join was the slowest profiled attribution operation on practice and final scale. Resolving click users and campaigns during parsing reduced local practice median runtime from 5.923 s to 5.396 s and final-scale median runtime from 18.869 s to 14.677 s. All public checks, all six large output comparisons and the complete practice click comparison passed. Await the official result for a44693d5344aa3b83303b8e6929c168075c7e828 before updating the official ranking.
+The timeline join was the slowest profiled attribution operation on practice and final scale. Resolving click users and campaigns during parsing reduced local practice median runtime from 5.923 s to 5.396 s and final-scale median runtime from 18.869 s to 14.677 s. All public checks, all six large output comparisons and the complete practice click comparison passed. The official practice result improved by 0.0589 s to 8.7559 s. Use a44693d5344aa3b83303b8e6929c168075c7e828 as the control. Next, profile the native session labeler by timing identity lookup and routing, per-person grouping and sorting, and Arrow batch construction separately.
