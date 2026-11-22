@@ -56,7 +56,7 @@ Both images ran sequentially with the same generator volumes, host, CPU quota, m
 | 3 | 16.036 s | 10.115 s |
 | Median | 15.643 s | 10.115 s |
 
-Practice elapsed time decreased 35.3%. Median event deduplication/validation fell from 6.000 s to 1.762 s. CSV/identity preparation also fell from 3.481 s to 2.519 s because that stage no longer writes event shards. No hidden practice timing is available for B.
+Practice elapsed time decreased 35.3%. Median event deduplication/validation fell from 6.000 s to 1.762 s. CSV/identity preparation also fell from 3.481 s to 2.519 s because that stage no longer writes event shards. The owner subsequently reported 17.14 s for B on official practice, down from 24.98 s for A. The official reduction of 31.4% was about 4 percentage points smaller than the paired local improvement. The scorer provides no stage breakdown to explain the difference.
 
 | 60M final-scale run | A wall | B wall | A peak process RSS | B peak process RSS |
 |---|---:|---:|---:|---:|

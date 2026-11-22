@@ -2,13 +2,15 @@
 
 ## Best available submission
 
-**Selected local SHA:** `c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50`. Clean build passed 36/36 fixtures and both official dev tables. Both large tables matched the scored release across all six paired runs. Median local times were 10.115 s on practice and 33.265 s on final scale. Official score pending. The development branch carries the same runtime and the verification ledger.
+**Selected local SHA:** `c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50`. Clean build passed 36/36 fixtures and both official dev tables. Both large tables matched the scored release across all six paired runs. Median local times were 10.115 s on practice and 33.265 s on final scale. Official practice score is 17.14 s, our best to date. The development branch carries the same runtime and the verification ledger.
 
 Run `git rev-parse best-verified` for the selected local submission SHA. BENCHMARKS.md records the implementation, local verification and measurements. Each tested implementation remains in the history of main. The development checkout may contain subsequent ledger or benchmark updates.
 
 ## Official results
 
-Attempt 1, reported by the owner on 2026-11-21: **24.98 s** on official practice for `eb3762be83c1b0ee58826a8d674070f3a87fcf30`. This is our first and best official result. The owner reported a leaderboard lead of 0.27 s at the time.
+Attempt 1, reported by the owner on 2026-11-21: **24.98 s** on official practice for `eb3762be83c1b0ee58826a8d674070f3a87fcf30`. This was our first official result. The owner reported a leaderboard lead of 0.27 s at the time.
+
+Attempt 2, reported by the owner on 2026-11-21, scored **17.14 s** on official practice for `c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50`. This is our best official result, 7.84 s (31.4%) below attempt 1.
 
 ## Manual hand-in
 
@@ -18,7 +20,7 @@ The starter team metadata is blank. Supply actual team details if used for regis
 
 ## Recoverable local candidates
 
-All revisions below passed the official local fixtures and dev comparison. BENCHMARKS.md records their runs and resource measurements. The original pinned release holds our best official score of 24.98 s.
+All revisions below passed the official local fixtures and dev comparison. BENCHMARKS.md records their runs and resource measurements. The native event partition release holds our best official score of 17.14 s.
 
 | SHA | Implementation and status |
 |---|---|
@@ -28,5 +30,5 @@ All revisions below passed the official local fixtures and dev comparison. BENCH
 | 51ba46ccf2e58e463f3909b7f16dd929154fbc1b | Partitioned dedup, SQL attribution. Large differential reference. |
 | 9a8ec0b70cf4ff3088a19eb9bfb7fc1a41f0d6b7 | SQL priority aggregation. Slower on final scale. |
 | 108514a89e2489f8d6469623a7c4f46a6a24517c | Sliding-window attribution. Pre-release benchmark. |
-| eb3762be83c1b0ee58826a8d674070f3a87fcf30 | Best official release. Official practice 24.98 s. |
-| c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50 | Best verified local release. Native event partitions and Arrow buffers. Awaiting official scoring. |
+| eb3762be83c1b0ee58826a8d674070f3a87fcf30 | First official release. Official practice 24.98 s. |
+| c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50 | Best verified local release. Native event partitions and Arrow buffers. Best official practice score, 17.14 s. |
