@@ -1,5 +1,6 @@
 mod clicks;
 mod csv;
+mod event_blocks;
 mod sessions;
 mod people;
 
@@ -14,7 +15,7 @@ const PARTITIONS: usize = 256;
 const CHUNK: u64 = 16 << 20;
 
 struct Event {
-    hash: u64,
+    hash: u32, // A probe hint; collisions are resolved using the full ID.
     ingest: i64,
     time: i64,
     cents: i32, // -1 retains an invalid copy in the earliest-ingest election
@@ -24,7 +25,6 @@ struct Event {
     end: u32,
 }
 
-#[derive(Default)]
 struct Bucket {
     bytes: Vec<u8>,
     rows: Vec<Event>,
@@ -55,11 +55,13 @@ fn read_chunk(job: &(PathBuf, u64, u64), mut visit: impl FnMut(&[u8]) -> io::Res
 }
 
 fn parse_chunk(job: &(PathBuf, u64, u64), start: i64, end: i64) -> io::Result<Vec<Bucket>> {
-    let mut buckets: Vec<Bucket> = (0..PARTITIONS).map(|_| Bucket::default()).collect();
-    read_chunk(job, |raw| {
-        let Some([id, user, ts, ingest, kind, product, price]) = csv::fields(raw) else {
-            return Ok(());
-        };
+    // Estimate capacity from this range only. Longer fields and skewed keys grow normally.
+    let per_partition = (job.2 - job.1) as usize / PARTITIONS;
+    let mut buckets = (0..PARTITIONS).map(|_| Bucket {
+        rows: Vec::with_capacity(per_partition / 96),
+        bytes: Vec::with_capacity(per_partition / 4),
+    }).collect::<Vec<_>>();
+    event_blocks::read(job, |[id, user, ts, ingest, kind, product, price]| {
         if id.is_empty() {
             return Ok(());
         }
@@ -74,6 +76,7 @@ fn parse_chunk(job: &(PathBuf, u64, u64), start: i64, end: i64) -> io::Result<Ve
         let hash = id.iter().fold(14695981039346656037u64, |n, b| {
             (n ^ u64::from(*b)).wrapping_mul(1099511628211)
         });
+        let hash = hash as u32;
         let bucket = &mut buckets[hash as usize % PARTITIONS];
         let bytes = &mut bucket.bytes;
         let begin = offset(bytes)?;
@@ -207,10 +210,26 @@ fn csv_jobs(dir: &Path) -> io::Result<Vec<(PathBuf, u64, u64)>> {
 }
 
 fn build(dir: &Path, start: i64, end: i64, workers: usize) -> io::Result<Vec<Batch>> {
-    let jobs = csv_jobs(dir)?;
-    let chunks = parallel(jobs.len(), workers, |i| parse_chunk(&jobs[i], start, end))
-        .into_iter()
-        .collect::<io::Result<Vec<_>>>()?;
+    let mut jobs = csv_jobs(dir)?;
+    jobs.sort_unstable_by_key(|(_, begin, end)| std::cmp::Reverse(end - begin));
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let chunks = thread::scope(|scope| -> io::Result<Vec<Vec<Bucket>>> {
+        let mut threads = Vec::new();
+        for _ in 0..workers.min(jobs.len()) {
+            threads.push(scope.spawn(|| -> io::Result<Vec<_>> {
+                let mut result = Vec::new();
+                while let Some(job) = jobs.get(next.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) {
+                    result.push(parse_chunk(job, start, end)?);
+                }
+                Ok(result)
+            }));
+        }
+        let mut chunks = Vec::with_capacity(jobs.len());
+        for handle in threads {
+            chunks.extend(handle.join().unwrap()?);
+        }
+        Ok(chunks)
+    })?;
     Ok(parallel(PARTITIONS, workers, |i| dedup(&chunks, i)))
 }
 
