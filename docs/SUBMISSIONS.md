@@ -2,7 +2,7 @@
 
 ## Best available submission
 
-**Selected local SHA:** `a44693d5344aa3b83303b8e6929c168075c7e828`. Native click joins passed 36/36 fixtures, both official dev comparisons and six paired large output comparisons. Local median wall times were 5.396 s on practice and 14.677 s at final scale. Its official practice score of 8.7559 s is our best reported result.
+**Selected local SHA:** `0cdcdc9cacfe0ad20489568b7645917acabd7f3a`. The shared identity index passed all 36 fixtures, both official dev comparisons and six paired comparisons of both large output tables. Local medians were 4.546 s on practice and 13.467 s at final scale. Official score pending. The best reported official practice score is 8.7559 s for `a44693d5344aa3b83303b8e6929c168075c7e828`.
 
 Run `git rev-parse best-verified` for the selected local submission SHA. BENCHMARKS.md records the implementation, local verification and measurements. Each tested implementation remains in the history of main. The development checkout may contain subsequent ledger or benchmark updates.
 
@@ -43,4 +43,5 @@ All revisions below passed the official local fixtures and dev comparison. BENCH
 | 9776571dedb150b32836d8e0c1a10d547181edb6 | Parallel attribution sweep. Official practice score, 15.6507 s. |
 | ae9ec3178f32c82c78e930a3b50944da3dcfc5a8 | Native identity resolution. Official practice score, 13.3325 s. |
 | edd24d4f9f43317c69c33f02416a14231ab53f26 | Native session labeling. Official practice score, 8.8148 s. |
-| a44693d5344aa3b83303b8e6929c168075c7e828 | Best verified local release. Native click timeline joins. Best official practice score, 8.7559 s. |
+| a44693d5344aa3b83303b8e6929c168075c7e828 | Native click timeline joins. Best official practice score, 8.7559 s. |
+| 0cdcdc9cacfe0ad20489568b7645917acabd7f3a | Best verified local release. Shared identity index. Official practice score pending. |

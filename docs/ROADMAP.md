@@ -29,3 +29,7 @@ The session labeler took 2.264 s on local practice versus 0.162 s for per-sessio
 ## Native click timeline joins
 
 The timeline join was the slowest profiled attribution operation on practice and final scale. Resolving click users and campaigns during parsing reduced local practice median runtime from 5.923 s to 5.396 s and final-scale median runtime from 18.869 s to 14.677 s. All public checks, all six large output comparisons and the complete practice click comparison passed. The official practice result improved by 0.0589 s to 8.7559 s. Use a44693d5344aa3b83303b8e6929c168075c7e828 as the control. Next, profile the native session labeler by timing identity lookup and routing, per-person grouping and sorting, and Arrow batch construction separately.
+
+## Shared identity index
+
+Identity lookup and routing consumed 0.609 s on local practice, ahead of grouping and sorting (0.374 s) and labeled Arrow batch construction (0.155 s). Building the index once and sharing it across both consumers reduced local practice median wall time by 8.8% and final-scale median wall time by 7.4%. The candidate passed both public checks and all six large differential comparisons. Use 0cdcdc9cacfe0ad20489568b7645917acabd7f3a for the next official practice run and compare its score with 8.7559 s.

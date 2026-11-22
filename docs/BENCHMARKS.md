@@ -199,3 +199,29 @@ Click preparation is the median of three standalone runs of the control cleaner 
 Run scripts/local.ps1 for practice and final with the control image and candidate image. Use a unique output label per run, the same volume for both images, and order AB, BA, AB per scale. Each container received 8 CPUs, 24 GiB and fresh scratch. Candidate median time fell 8.9% on practice and 22.2% at final scale. Its combined native click preparation and join timer had medians of 0.540 s and 1.548 s. Maximum final-scale candidate memory was 9,897,250,816 bytes.
 
 All 36 fixtures passed. The official dev checker matched 117,038 user/day rows and 27,400 campaign/day rows with zero duplicate keys. Both daily tables matched in both directions with EXCEPT ALL in every large pair. Session, revenue and assist checks passed on both scales. An additional untimed seed-23 comparison matched all 5,131,997 joined click rows, including multiplicities, by click ID, canonical person, timestamp and campaign ID. The owner reported 8.7559 s on official practice, down from 8.8148 s (0.67%). The local practice median fell 8.9%. The official run provided no stage timings to explain the difference.
+
+## Shared identity lookup for session routing
+
+Control a44693d5344aa3b83303b8e6929c168075c7e828 scored 8.7559 s on official practice. In a diagnostic build of its Rust library, time loading and indexing the resolver CSV plus routing all winner batches. Then group and sort every partition before a separate pass assigns start labels and writes the Arrow column buffers. Time the Python Arrow wrappers separately and include them with buffer construction. These barriers extend intermediate lifetimes. Use the uninstrumented images for end-to-end comparisons.
+
+| Control session labeling stage | Practice, seed 23 (median of 3) | Final, seed 42 (one run) |
+|---|---:|---:|
+| Identity lookup and routing | 0.609 s | 2.325 s |
+| Per-person grouping and sorting | 0.374 s | 1.282 s |
+| Label scan, Arrow buffer construction and wrappers | 0.155 s | 0.467 s |
+
+Candidate 0cdcdc9cacfe0ad20489568b7645917acabd7f3a builds one native identity index from the link files. Indexed names occupy a contiguous byte buffer. Union-find chooses the bytewise smallest name in each component, and a final compression pass fixes each ID's canonical root. Event routing uses the canonical name's stored hash to select a partition. Click preparation queries the same immutable index. This removes the identity CSV export and both subsequent index builds. The diagnostic identity exporter uses the same resolver.
+
+The production images were the scored control (01b36cc06e1a) and the candidate built from its Git archive (20e685a6c5c8). Run scripts/local.ps1 practice and final for each image with a fresh output label and scratch space, 8 CPUs, 24 GiB, and the same input volume. Execution order by pair was AB, BA, AB at each scale.
+
+| Container wall time | Practice control | Practice candidate | Final control | Final candidate |
+|---|---:|---:|---:|---:|
+| Pair 1 | 5.283 s | 4.485 s | 14.741 s | 13.467 s |
+| Pair 2 | 4.982 s | 4.546 s | 14.372 s | 14.128 s |
+| Pair 3 | 4.882 s | 4.656 s | 14.546 s | 13.458 s |
+| Median | 4.982 s | 4.546 s | 14.546 s | 13.467 s |
+
+Median end-to-end wall time fell 8.8% on practice and 7.4% at final scale. Median session labeling time fell from 1.076 s to 0.856 s on practice and from 3.532 s to 3.270 s at final scale. Maximum final-scale container memory rose from 9,920,815,104 to 10,361,298,944 bytes, within the 24 GiB limit.
+
+All 36 fixtures passed. The official dev checker matched both schemas and all 117,038 user/day and 27,400 campaign/day rows, with zero duplicate keys. Both Parquet tables matched as multisets in both directions for all six pairs, and all session, revenue and assist checks passed.
+A candidate timing probe measured shared lookup and routing at 0.430 s on practice (median of three) and 1.863 s at final scale (one run). A separate bidirectional multiset comparison matched the complete identity maps for 1,195,420 IDs in 383,629 components on practice and 3,594,075 IDs in 1,149,399 components at final scale. Official candidate score pending.
