@@ -1,5 +1,6 @@
 mod clicks;
 mod csv;
+mod event_csv;
 mod sessions;
 mod people;
 
@@ -56,15 +57,13 @@ fn read_chunk(job: &(PathBuf, u64, u64), mut visit: impl FnMut(&[u8]) -> io::Res
 
 fn parse_chunk(job: &(PathBuf, u64, u64), start: i64, end: i64) -> io::Result<Vec<Bucket>> {
     let mut buckets: Vec<Bucket> = (0..PARTITIONS).map(|_| Bucket::default()).collect();
-    read_chunk(job, |raw| {
-        let Some([id, user, ts, ingest, kind, product, price]) = csv::fields(raw) else {
-            return Ok(());
-        };
+    let mut timestamps = csv::UtcDays::default();
+    event_csv::visit(job, |[id, user, ts, ingest, kind, product, price]| {
         if id.is_empty() {
             return Ok(());
         }
-        let ingest = csv::millis(ingest).ok_or_else(|| io::Error::other("invalid ingest time"))?;
-        let time = csv::millis(ts).filter(|&t| t >= start && t < end && ingest <= t + 86_400_000);
+        let ingest = timestamps.millis(ingest).ok_or_else(|| io::Error::other("invalid ingest time"))?;
+        let time = timestamps.millis(ts).filter(|&t| t >= start && t < end && ingest <= t + 86_400_000);
         let cents = match kind {
             b"cart" | b"view" => Some(0),
             b"purchase" => csv::decimal(price).filter(|p| (1..=10_000_000).contains(p)),
