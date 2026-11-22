@@ -99,5 +99,15 @@ class ClickBatches(NativeBatches):
             raise RuntimeError("native click reader failed")
         self.count = count.value
 
+    def attribute(self, labels, people, workers, output):
+        if not labels._exported:
+            raise ValueError("attribution requires labeled event batches")
+        self.lib.attribute_batches.argtypes = [
+            ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.c_size_t, ct.c_char_p]
+        self.lib.attribute_batches.restype = ct.c_bool
+        if not self.lib.attribute_batches(labels.handle, self.handle, people.handle,
+                                          workers, os.fsencode(output)):
+            raise RuntimeError("native attribution failed")
+
     def table(self):
         return self._table(["person", "t", "code", "cid"])

@@ -113,8 +113,12 @@ impl People {
         Ok(people)
     }
 
+    pub fn hash_name(&self, name: &[u8]) -> u64 {
+        self.hasher.hash_one(name)
+    }
+
     pub fn canonical<'a>(&'a self, uid: &'a [u8]) -> (&'a [u8], u64) {
-        let hash = self.hasher.hash_one(uid);
+        let hash = self.hash_name(uid);
         let i = self.slots[self.slot(uid, hash)];
         if i == EMPTY { return (uid, hash); }
         let root = self.nodes[i].root;

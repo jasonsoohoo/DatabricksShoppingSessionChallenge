@@ -2,24 +2,17 @@
 // arrive in descending ID order, then the session. The last click wins.
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
-
-#[derive(Default)]
-struct Daily {
-    sessions: i64,
-    purchases: i64,
-    revenue: i64,
-    assists: i64,
-}
 
 fn number(s: &[u8]) -> i64 {
     std::str::from_utf8(s).unwrap().parse().unwrap()
 }
 
-type Totals = HashMap<(i64, i64), Daily>;
+mod campaign_totals;
+use campaign_totals::Totals;
 
 fn sweep(mut reader: impl BufRead, daily: &mut Totals) -> io::Result<()> {
     let mut person = Vec::new();
@@ -142,23 +135,9 @@ fn main() -> io::Result<()> {
             .collect();
         let mut daily = Totals::new();
         for handle in handles {
-            for (key, part) in handle.join().unwrap()? {
-                let total = daily.entry(key).or_default();
-                total.sessions += part.sessions;
-                total.purchases += part.purchases;
-                total.revenue += part.revenue;
-                total.assists += part.assists;
-            }
+            campaign_totals::merge(&mut daily, handle.join().unwrap()?);
         }
         Ok(daily)
     })?;
-    let mut output = BufWriter::new(File::create(&args[1])?);
-    for ((code, day), row) in daily {
-        writeln!(
-            output,
-            "{code},{day},{},{},{},{}",
-            row.sessions, row.purchases, row.revenue, row.assists
-        )?;
-    }
-    output.flush()
+    campaign_totals::write(Path::new(&args[1]), daily)
 }

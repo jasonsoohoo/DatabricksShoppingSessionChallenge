@@ -1,3 +1,5 @@
+mod attribution;
+mod campaign_totals;
 mod clicks;
 mod csv;
 mod event_blocks;

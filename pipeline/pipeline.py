@@ -61,7 +61,6 @@ def run(data, output, work):
         winners = EventBatches(data / "events", start, end, workers)
     with stage("session labeling"):
         con.register("labeled", winners.labeled_table(people, workers))
-        del winners
     with stage("per-session aggregation"):
         execute("""
         create table sessions as select person, begin_ms, epoch_ms(begin_ms)::date as day,
@@ -83,28 +82,15 @@ def run(data, output, work):
         from sessions left join top_categories using(person, day) group by person,day;
         """)
     with stage("clicks and attribution"):
-        timeline = work / "timeline.csv"
         totals = work / "totals.csv"
         execute("create table codes as select *, row_number() over() as code from raw_campaigns")
         code_path = work / "codes.csv"
         execute(f"copy (select campaign, code from codes) to {literal(code_path)} (format csv, header false)")
         with stage("native click preparation and timeline joins"):
             clicks = ClickBatches(data / "clicks", people, code_path, start, end, workers)
-            con.register("prepared_clicks", clicks.table())
-            del clicks, people
-        execute("set preserve_insertion_order=true")
-        execute(f"""
-          copy (
-            select person,t,code,revenue from (
-              select person, t, code, 0 as revenue, cid
-              from prepared_clicks
-              union all
-              select person, begin_ms, 0, revenue, null from sessions
-            ) order by person, t, cid desc nulls last
-          ) to {literal(timeline)} (format csv, header false)
-        """)
-        con.unregister("prepared_clicks")
-        subprocess.run(["/app/attribute", timeline, totals], check=True)
+        with stage("partitioned attribution"):
+            clicks.attribute(winners, people, workers, totals)
+            del clicks, people, winners
         source = relation(totals, "code days sessions purchasing_sessions revenue_cents assisted_sessions")
         execute(f"""
           create view campaign_daily as
