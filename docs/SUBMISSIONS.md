@@ -2,7 +2,7 @@
 
 ## Best available submission
 
-**Selected local SHA:** `0cdcdc9cacfe0ad20489568b7645917acabd7f3a`. The shared identity index passed all 36 fixtures, both official dev comparisons and six paired comparisons of both large output tables. Local medians were 4.546 s on practice and 13.467 s at final scale. Official score pending. The best reported official practice score is 8.7559 s for `a44693d5344aa3b83303b8e6929c168075c7e828`.
+**Selected local SHA:** `0cdcdc9cacfe0ad20489568b7645917acabd7f3a`. The shared identity index passed all 36 fixtures, both official dev comparisons and six paired comparisons of both large output tables. Local medians were 4.546 s on practice and 13.467 s at final scale. Its official practice score of 7.6800 s is the best reported result.
 
 Run `git rev-parse best-verified` for the selected local submission SHA. BENCHMARKS.md records the implementation, local verification and measurements. Each tested implementation remains in the history of main. The development checkout may contain subsequent ledger or benchmark updates.
 
@@ -20,6 +20,8 @@ Attempt 5, reported by the owner on 2026-11-21, scored **8.8148 s** on official 
 
 Attempt 6, reported by the owner on 2026-11-21, scored **8.7559 s** on official practice for `a44693d5344aa3b83303b8e6929c168075c7e828`. This is 0.0589 s (0.67%) below attempt 5 and 64.95% below the first run of 24.98 s.
 
+Attempt 7, reported by the owner on 2026-11-22, scored **7.6800 s** on official practice for `0cdcdc9cacfe0ad20489568b7645917acabd7f3a`. Runtime fell by 1.0759 s (12.29%) from attempt 6 and by 17.3000 s (69.26%) from the first run.
+
 ## Manual hand-in
 
 Before the cutoff, the owner publishes the repository to public GitHub, including the selected commit and all previously submitted commits. On the Shopping Sessions track, enter the public repository URL and exact SHA, then submit. Check that the selected final revision is fetchable. Keep the public history through publication of results. Report the SHA, scorer version, score or failure, and timestamp here after each official attempt. Update the best official SHA only when the scorer confirms a better result.
@@ -28,7 +30,7 @@ The starter team metadata is blank. Supply actual team details if used for regis
 
 ## Recoverable local candidates
 
-All revisions below passed the official local fixtures and dev comparison. BENCHMARKS.md records their runs and resource measurements. The native click joins release holds our best official score of 8.7559 s.
+All revisions below passed the official local fixtures and dev comparison. BENCHMARKS.md records their runs and resource measurements. The shared identity index release holds our best official score of 7.6800 s.
 
 | SHA | Implementation and status |
 |---|---|
@@ -43,5 +45,5 @@ All revisions below passed the official local fixtures and dev comparison. BENCH
 | 9776571dedb150b32836d8e0c1a10d547181edb6 | Parallel attribution sweep. Official practice score, 15.6507 s. |
 | ae9ec3178f32c82c78e930a3b50944da3dcfc5a8 | Native identity resolution. Official practice score, 13.3325 s. |
 | edd24d4f9f43317c69c33f02416a14231ab53f26 | Native session labeling. Official practice score, 8.8148 s. |
-| a44693d5344aa3b83303b8e6929c168075c7e828 | Native click timeline joins. Best official practice score, 8.7559 s. |
-| 0cdcdc9cacfe0ad20489568b7645917acabd7f3a | Best verified local release. Shared identity index. Official practice score pending. |
+| a44693d5344aa3b83303b8e6929c168075c7e828 | Native click timeline joins. Official practice score, 8.7559 s. |
+| 0cdcdc9cacfe0ad20489568b7645917acabd7f3a | Best verified local release. Shared identity index. Best official practice score, 7.6800 s. |

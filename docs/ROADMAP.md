@@ -6,7 +6,7 @@
 | M1 correctness | Complete | Both output schemas and every expected row pass the official local fixture and seed-1 dev checkers. |
 | M2 benchmarking | Complete | Four reproducible input scales. Docker entry point reports stage timings, CPU and memory. Local runner records wall time, revision and image size. |
 | M3 optimization | Complete for this candidate | Native CSV and timestamp parsing, bounded event dedup and sliding-window attribution. Recoverable revisions and observed performance in BENCHMARKS.md. |
-| M4 hand-in | Sixth official practice run scored 8.7559 s | Native click joins passed the public checks and all six paired comparisons. Final-scale local median was 14.677 s. Submission SHA in SUBMISSIONS.md. |
+| M4 hand-in | Seventh official practice run scored 7.6800 s | The shared identity index passed the public checks and all six paired comparisons. Final-scale local median was 13.467 s. Submission SHA in SUBMISSIONS.md. |
 
 The owner handles publication and scorer submission. Record each reported official score against its exact SHA, update the best official result, and use the hidden-run timing to prioritize the next experiment. The official dataset, scorer hardware and hidden results are unavailable locally.
 
@@ -32,4 +32,4 @@ The timeline join was the slowest profiled attribution operation on practice and
 
 ## Shared identity index
 
-Identity lookup and routing consumed 0.609 s on local practice, ahead of grouping and sorting (0.374 s) and labeled Arrow batch construction (0.155 s). Building the index once and sharing it across both consumers reduced local practice median wall time by 8.8% and final-scale median wall time by 7.4%. The candidate passed both public checks and all six large differential comparisons. Use 0cdcdc9cacfe0ad20489568b7645917acabd7f3a for the next official practice run and compare its score with 8.7559 s.
+Identity lookup and routing consumed 0.609 s on local practice, ahead of grouping and sorting (0.374 s) and labeled Arrow batch construction (0.155 s). Building the index once and sharing it across both consumers reduced local practice median wall time by 8.8% and final-scale median wall time by 7.4%. The candidate passed both public checks and all six large differential comparisons. The official practice score fell from 8.7559 s to 7.6800 s. Use this revision as the next control. Profile native event parsing and partitioning separately from per-partition winner selection and output batch construction before selecting the next optimization.
