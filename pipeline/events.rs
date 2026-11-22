@@ -1,6 +1,5 @@
 mod clicks;
 mod csv;
-mod event_csv;
 mod sessions;
 mod people;
 
@@ -10,44 +9,29 @@ use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::thread;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 const PARTITIONS: usize = 256;
 const CHUNK: u64 = 16 << 20;
 
-#[derive(Copy, Clone)]
-struct Span {
-    start: u32,
-    len: u32,
-}
-
-impl Span {
-    // All fields are slices of the same input chunk, checked to fit in u32.
-    fn new(field: &[u8], bytes: &[u8]) -> Self {
-        Self {
-            start: if field.is_empty() { 0 } else { (field.as_ptr() as usize - bytes.as_ptr() as usize) as u32 },
-            len: field.len() as u32,
-        }
-    }
-
-    fn get(self, bytes: &[u8]) -> &[u8] {
-        &bytes[self.start as usize..self.start as usize + self.len as usize]
-    }
-}
-
 struct Event {
     hash: u64,
+    ingest: i64,
     time: i64,
-    cents: i32,
-    id: Span,
-    user: Span,
-    product: Span,
-    ingest: u32,
+    cents: i32, // -1 retains an invalid copy in the earliest-ingest election
+    begin: u32,
+    key_end: u32,
+    user_end: u32,
+    end: u32,
 }
 
-struct Chunk {
+#[derive(Default)]
+struct Bucket {
     bytes: Vec<u8>,
-    partitions: Vec<Vec<Event>>,
+    rows: Vec<Event>,
+}
+
+fn offset(bytes: &[u8]) -> io::Result<u32> {
+    u32::try_from(bytes.len()).map_err(|_| io::Error::other("event input chunk exceeds 4 GiB"))
 }
 
 fn read_chunk(job: &(PathBuf, u64, u64), mut visit: impl FnMut(&[u8]) -> io::Result<()>) -> io::Result<()> {
@@ -70,43 +54,51 @@ fn read_chunk(job: &(PathBuf, u64, u64), mut visit: impl FnMut(&[u8]) -> io::Res
     Ok(())
 }
 
-fn parse_chunk(job: &(PathBuf, u64, u64), start: i64, end: i64) -> io::Result<Chunk> {
-    let (bytes, first) = event_csv::read(job)?;
-    u32::try_from(bytes.len()).map_err(|_| io::Error::other("event input chunk exceeds 4 GiB"))?;
-    let mut partitions = (0..PARTITIONS).map(|_| Vec::new()).collect::<Vec<_>>();
-    let mut timestamps = csv::UtcDays::default();
-    event_csv::visit(&bytes[first..], |[id, user, ts, ingest, kind, product, price]| {
-        if id.is_empty() { return Ok(()); }
-        // The specification guarantees fixed-width UTC (F1) ingestion times.
-        // An F1 event on the same UTC day cannot be more than 24 hours late.
-        if ingest.len() != 20 { return Err(io::Error::other("invalid ingest time")); }
-        let time = timestamps.millis(ts).filter(|&t| t >= start && t < end);
-        let timely = match time {
-            None => false,
-            Some(_) if ts.len() == 20 && ts[19] == b'Z' && ts[..10] == ingest[..10] => true,
-            Some(t) => timestamps.millis(ingest).is_some_and(|i| i <= t + 86_400_000),
+fn parse_chunk(job: &(PathBuf, u64, u64), start: i64, end: i64) -> io::Result<Vec<Bucket>> {
+    let mut buckets: Vec<Bucket> = (0..PARTITIONS).map(|_| Bucket::default()).collect();
+    read_chunk(job, |raw| {
+        let Some([id, user, ts, ingest, kind, product, price]) = csv::fields(raw) else {
+            return Ok(());
         };
+        if id.is_empty() {
+            return Ok(());
+        }
+        let ingest = csv::millis(ingest).ok_or_else(|| io::Error::other("invalid ingest time"))?;
+        let time = csv::millis(ts).filter(|&t| t >= start && t < end && ingest <= t + 86_400_000);
         let cents = match kind {
             b"cart" | b"view" => Some(0),
             b"purchase" => csv::decimal(price).filter(|p| (1..=10_000_000).contains(p)),
             _ => None,
         };
+        let valid = time.is_some() && cents.is_some() && !user.is_empty() && !product.is_empty();
         let hash = id.iter().fold(14695981039346656037u64, |n, b| {
             (n ^ u64::from(*b)).wrapping_mul(1099511628211)
         });
-        let valid = timely && !user.is_empty() && !product.is_empty();
-        partitions[hash as usize % PARTITIONS].push(Event {
+        let bucket = &mut buckets[hash as usize % PARTITIONS];
+        let bytes = &mut bucket.bytes;
+        let begin = offset(bytes)?;
+        bytes.extend_from_slice(id);
+        let key_end = offset(bytes)?;
+        if valid {
+            bytes.extend_from_slice(user);
+        }
+        let user_end = offset(bytes)?;
+        if valid && cents != Some(0) {
+            bytes.extend_from_slice(product);
+        }
+        bucket.rows.push(Event {
             hash,
+            ingest,
             time: time.unwrap_or(0),
-            cents: if valid { cents.unwrap_or(-1) as i32 } else { -1 },
-            id: Span::new(id, &bytes),
-            user: Span::new(user, &bytes),
-            product: Span::new(product, &bytes),
-            ingest: Span::new(ingest, &bytes).start,
+            cents: if valid { cents.unwrap() as i32 } else { -1 },
+            begin,
+            key_end,
+            user_end,
+            end: offset(bytes)?,
         });
         Ok(())
     })?;
-    Ok(Chunk { bytes, partitions })
+    Ok(buckets)
 }
 
 #[derive(Default)]
@@ -134,34 +126,32 @@ struct Batch {
     cents: Vec<i32>,
 }
 
-fn dedup(chunks: &[Chunk], partition: usize) -> Batch {
+fn dedup(chunks: &[Vec<Bucket>], partition: usize) -> Batch {
     let count = chunks
         .iter()
-        .map(|c| c.partitions[partition].len())
+        .map(|c| c[partition].rows.len())
         .sum::<usize>();
     let capacity = (count + count / 2 + 1).next_power_of_two();
     let mut slots = vec![usize::MAX; capacity];
     let mut winners: Vec<(&Event, &[u8])> = Vec::with_capacity(count);
     for chunk in chunks {
-        let bytes = chunk.bytes.as_slice();
-        for row in &chunk.partitions[partition] {
+        let bucket = &chunk[partition];
+        for row in &bucket.rows {
             let mut slot = (row.hash as usize / PARTITIONS) & (capacity - 1);
             loop {
                 let index = slots[slot];
                 if index == usize::MAX {
                     slots[slot] = winners.len();
-                    winners.push((row, bytes));
+                    winners.push((row, &bucket.bytes));
                     break;
                 }
-                let (prev, previous_bytes) = winners[index];
+                let (prev, bytes) = winners[index];
                 if prev.hash == row.hash
-                    && prev.id.get(previous_bytes) == row.id.get(bytes)
+                    && bytes[prev.begin as usize..prev.key_end as usize]
+                        == bucket.bytes[row.begin as usize..row.key_end as usize]
                 {
-                    // Fixed-width F1 timestamps sort chronologically by bytes.
-                    let old = prev.ingest as usize;
-                    let new = row.ingest as usize;
-                    if bytes[new..new + 20] < previous_bytes[old..old + 20] {
-                        winners[index] = (row, bytes);
+                    if row.ingest < prev.ingest {
+                        winners[index] = (row, &bucket.bytes);
                     }
                     break;
                 }
@@ -174,8 +164,12 @@ fn dedup(chunks: &[Chunk], partition: usize) -> Batch {
         if row.cents < 0 {
             continue;
         }
-        batch.users.push(row.user.get(bytes));
-        batch.products.push(if row.cents > 0 { row.product.get(bytes) } else { &[] });
+        batch
+            .users
+            .push(&bytes[row.key_end as usize..row.user_end as usize]);
+        batch
+            .products
+            .push(&bytes[row.user_end as usize..row.end as usize]);
         batch.times.push(row.time);
         batch.cents.push(row.cents);
     }
@@ -213,27 +207,10 @@ fn csv_jobs(dir: &Path) -> io::Result<Vec<(PathBuf, u64, u64)>> {
 }
 
 fn build(dir: &Path, start: i64, end: i64, workers: usize) -> io::Result<Vec<Batch>> {
-    let mut jobs = csv_jobs(dir)?;
-    jobs.sort_unstable_by_key(|(_, begin, end)| std::cmp::Reverse(end - begin));
-    // File sizes vary. Assign the next largest range to the first free parser.
-    let next = AtomicUsize::new(0);
-    let chunks = thread::scope(|scope| -> io::Result<Vec<Chunk>> {
-        let mut threads = Vec::new();
-        for _ in 0..workers.min(jobs.len()) {
-            threads.push(scope.spawn(|| -> io::Result<Vec<Chunk>> {
-                let mut result = Vec::new();
-                while let Some(job) = jobs.get(next.fetch_add(1, Ordering::Relaxed)) {
-                    result.push(parse_chunk(job, start, end)?);
-                }
-                Ok(result)
-            }));
-        }
-        let mut chunks = Vec::with_capacity(jobs.len());
-        for handle in threads {
-            chunks.extend(handle.join().unwrap()?);
-        }
-        Ok(chunks)
-    })?;
+    let jobs = csv_jobs(dir)?;
+    let chunks = parallel(jobs.len(), workers, |i| parse_chunk(&jobs[i], start, end))
+        .into_iter()
+        .collect::<io::Result<Vec<_>>>()?;
     Ok(parallel(PARTITIONS, workers, |i| dedup(&chunks, i)))
 }
 

@@ -47,3 +47,5 @@ All revisions below passed the official local fixtures and dev comparison. BENCH
 | edd24d4f9f43317c69c33f02416a14231ab53f26 | Native session labeling. Official practice score, 8.8148 s. |
 | a44693d5344aa3b83303b8e6929c168075c7e828 | Native click timeline joins. Official practice score, 8.7559 s. |
 | 0cdcdc9cacfe0ad20489568b7645917acabd7f3a | Best verified local release. Shared identity index. Best official practice score, 7.6800 s. |
+| a450e7a86d4d75ca4013e32650ae0cddbd7b73f1 | Block event scanner. Passed public and large checks. Slower on practice. Local experiment. |
+| e901b8c968b58689388ae02879581efdec222307 | Raw-range event partitions. Passed public and large checks. Slower on both scales. Local experiment. |

@@ -33,3 +33,7 @@ The timeline join was the slowest profiled attribution operation on practice and
 ## Shared identity index
 
 Identity lookup and routing consumed 0.609 s on local practice, ahead of grouping and sorting (0.374 s) and labeled Arrow batch construction (0.155 s). Building the index once and sharing it across both consumers reduced local practice median wall time by 8.8% and final-scale median wall time by 7.4%. The candidate passed both public checks and all six large differential comparisons. The official practice score fell from 8.7559 s to 7.6800 s. Use this revision as the next control. Profile native event parsing and partitioning separately from per-partition winner selection and output batch construction before selecting the next optimization.
+
+## Event parser experiments
+
+Separate control timings identified parsing and partitioning as the largest event stage. Block scanning and validated date caching passed verification but increased the paired practice median from 10.969 s to 11.090 s. Retaining raw event ranges also passed verification but increased practice and final-scale medians. A direct-routing pilot lost all three practice pairs. Keep the 7.6800 s submission as the control. Future parser work should first isolate delimiter scanning, timestamp decoding and writes to the partition buffers on the same event input.

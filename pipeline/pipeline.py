@@ -7,7 +7,6 @@ import subprocess
 import sys
 import tempfile
 import time
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -45,16 +44,8 @@ def run(data, output, work):
                   for k in ("window_start", "window_end")]
     execute = con.execute
     workers = int(os.getenv("NCPU", "8"))
-    # Only session labeling needs both inputs. Parse events while building the
-    # identity index, reserving one CPU for the single-threaded resolver.
-    with stage("identity resolution and event validation"):
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            pending = pool.submit(People, data / "links")
-            if workers == 1:
-                pending.result()
-            winners = EventBatches(data / "events", start, end, max(1, workers - 1))
-            people = pending.result()
-            del pending
+    with stage("identity resolution and lookup table"):
+        people = People(data / "links")
 
     with stage("dimension CSV preparation"):
         subprocess.run(["/app/clean", data, work], check=True)
@@ -66,6 +57,8 @@ def run(data, output, work):
             path = work / table / "*.csv"
             execute(f"create view raw_{table} as select * from " + relation(path, fields))
 
+    with stage("event dedup and validation"):
+        winners = EventBatches(data / "events", start, end, workers)
     with stage("session labeling"):
         con.register("labeled", winners.labeled_table(people, workers))
         del winners

@@ -225,3 +225,30 @@ Median end-to-end wall time fell 8.8% on practice and 7.4% at final scale. Media
 
 All 36 fixtures passed. The official dev checker matched both schemas and all 117,038 user/day and 27,400 campaign/day rows, with zero duplicate keys. Both Parquet tables matched as multisets in both directions for all six pairs, and all session, revenue and assist checks passed.
 A candidate timing probe measured shared lookup and routing at 0.430 s on practice (median of three) and 1.863 s at final scale (one run). A separate bidirectional multiset comparison matched the complete identity maps for 1,195,420 IDs in 383,629 components on practice and 3,594,075 IDs in 1,149,399 components at final scale. The owner reported 7.6800 s on official practice, a 12.29% reduction from 8.7559 s. The corresponding paired local practice median fell 8.8%.
+
+## Event parsing and partitioning
+
+Control 0cdcdc9cacfe0ad20489568b7645917acabd7f3a scored 7.6800 s on official practice. An instrumented copy of its native library first read and partitioned all input ranges, then selected the earliest-ingested copy of every exact event ID, then constructed the winner output columns. Each phase joined its workers before starting the next timer. This extends the lifetime of winner references in the diagnostic build. The production benchmark uses the original fused selection and output loop.
+
+| Initial control profile | Practice, seed 23 (median of 3) | Final, seed 42 (one run) |
+|---|---:|---:|
+| Event parsing and partitioning | 1.959 s | 7.760 s |
+| Duplicate winner selection | 0.314 s | 1.629 s |
+| Output batch construction | 0.404 s | 1.202 s |
+
+The first candidate, a450e7a86d4d75ca4013e32650ae0cddbd7b73f1, scans delimiters and quote counts in 32-byte blocks on CPUs with AVX2 and POPCNT, with a scalar fallback. It also caches validated UTC dates. It passed the public checks and all six large differential comparisons. Its local practice median was 11.090 s versus 10.969 s for the control. Final-scale medians were 34.881 s and 35.942 s respectively. The practice result did not qualify this candidate for promotion.
+
+The second candidate, e901b8c968b58689388ae02879581efdec222307, retained raw ranges and stored field offsets. It assigned the largest remaining range to each free parser and overlapped the event read with identity resolution. Fixed-width F1 ingestion times permitted bytewise duplicate election and a same-UTC-day lateness shortcut. Both daily tables matched in all six pairs. The two-way intermediate multiset comparison matched 19,535,163 practice winner rows. It passed the public checkers and two parser regression tests, but end-to-end wall time increased at both scales.
+
+| Second candidate | Practice control | Practice candidate | Final control | Final candidate |
+|---|---:|---:|---:|---:|
+| Pair 1 | 7.176 s | 8.225 s | 23.328 s | 25.919 s |
+| Pair 2 | 7.368 s | 8.448 s | 22.241 s | 26.249 s |
+| Pair 3 | 7.301 s | 8.428 s | 23.456 s | 25.069 s |
+| Median | 7.301 s | 8.428 s | 23.328 s | 25.919 s |
+
+Each series used fresh containers and scratch space, identical named input volumes, 8 CPUs, 24 GiB and no swap. Run scripts/local.ps1 practice and final on each release image, with distinct output labels and order AB, BA, AB. Check both Parquet tables in both directions with scripts/check_large.py. Compare within each series because the control's elapsed time varied between series.
+
+A third practice-only pilot used compact event storage and routed the elected rows directly to session labeling. The three control times were 7.338, 8.131 and 8.147 s. The pilot took 8.486, 8.295 and 8.674 s in the respective pairs. It lost all three comparisons and did not advance to release verification. The 7.6800 s official control remains the selected revision.
+
+A final stage-only check loaded the instrumented control and block scanner libraries into one container per input scale. Each call opened and released the full event batches with eight workers. Order was AB, BA, AB. Control median parsing, winner selection and batch construction were 1.170, 0.155 and 0.217 s on practice, and 3.507, 0.823 and 0.600 s at final scale. The block scanner reduced median parsing to 1.042 s and 2.950 s respectively. Its full-pipeline practice median remained slower in the separate uninstrumented release comparison above.
