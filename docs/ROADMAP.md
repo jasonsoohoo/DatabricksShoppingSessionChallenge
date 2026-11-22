@@ -6,7 +6,7 @@
 | M1 correctness | Complete | Both output schemas and every expected row pass the official local fixture and seed-1 dev checkers. |
 | M2 benchmarking | Complete | Four reproducible input scales. Docker entry point reports stage timings, CPU and memory. Local runner records wall time, revision and image size. |
 | M3 optimization | Complete for this candidate | Native CSV and timestamp parsing, bounded event dedup and sliding-window attribution. Recoverable revisions and observed performance in BENCHMARKS.md. |
-| M4 hand-in | Seventh official practice run scored 7.6800 s | The shared identity index passed the public checks and all six paired comparisons. Final-scale local median was 13.467 s. Submission SHA in SUBMISSIONS.md. |
+| M4 hand-in | Eighth official practice run scored 7.4790 s | The buffered delimiter index passed the public checks and all twelve paired comparisons. Final-scale local median was 29.8255 s. Submission SHA in SUBMISSIONS.md. |
 
 The owner handles publication and scorer submission. Record each reported official score against its exact SHA, update the best official result, and use the hidden-run timing to prioritize the next experiment. The official dataset, scorer hardware and hidden results are unavailable locally.
 
@@ -40,4 +40,4 @@ Separate control timings identified parsing and partitioning as the largest even
 
 ## Buffered delimiter index
 
-Delimiter handling, including line reading and copying, was the largest of the three measured event parser costs on both scales. The buffered reader and compact partition metadata reduced local median runtime from 12.5985 s to 10.8985 s on practice and from 31.872 s to 29.8255 s at final scale. All official local checks and all twelve large output comparisons passed. Use 6832e74c86b7c7e611bebeb41f2ca33e544464f1 for the next official practice run and compare it with the 7.6800 s control.
+Delimiter handling, including line reading and copying, was the largest of the three measured event parser costs on both scales. The buffered reader and compact partition metadata reduced local median runtime from 12.5985 s to 10.8985 s on practice and from 31.872 s to 29.8255 s at final scale. All official local checks and all twelve large output comparisons passed. Official practice improved from 7.6800 s to 7.4790 s. Use the buffered delimiter revision as the next control and refresh end-to-end stage timings before choosing another optimization.
