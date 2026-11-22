@@ -143,3 +143,34 @@ The practice end-to-end median fell 21.8%. The separately profiled control ident
 | Median | 44.073 s | 35.892 s |
 
 Final-scale elapsed time decreased 18.6%. Peak B container memory across these runs was 12,327,649,280 bytes, within the 24 GiB limit. Both identity maps matched exactly: 1,195,420 IDs in 383,629 components on practice; 3,594,075 IDs in 1,149,399 components on final scale. Both Parquet tables matched in both directions with EXCEPT ALL in all six pairs, and the cross-table accounting checks passed. Practice reconciled to 3,368,309 sessions and 6,155,929,657 cents; final scale reconciled to 10,067,851 sessions and 20,418,435,163 cents. The owner reported 13.3325 s for B on official practice, down from 15.6507 s for A. The official reduction was 14.81%, compared with 21.8% in the paired local practice benchmark. Hidden stage timings are unavailable, so the cause of the difference is unresolved.
+
+## Native session labeling
+
+Control A was ae9ec3178f32c82c78e930a3b50944da3dcfc5a8, scored at 13.3325 s on official practice (image e2b62e299797). To profile it, the SQL statements from the combined session timer were executed separately in the same order. One timer covered CREATE TABLE labeled, including lag, cumulative max and materialization. Another covered CREATE TABLE sessions, the per-person/per-start count and revenue sum. Dropping valid, defining the lazy user_daily view and its later export were outside both timers.
+
+| Control, 20M practice seed 23 | Run 1 | Run 2 | Run 3 | Median |
+|---|---:|---:|---:|---:|
+| Session labeling | 2.639 s | 2.264 s | 2.091 s | 2.264 s |
+| Per-session aggregation | 0.177 s | 0.161 s | 0.162 s | 0.162 s |
+
+A preliminary single global sort with Arrow batch scans measured 2.154 s for labeling in one practice run. Candidate B, edd24d4f9f43317c69c33f02416a14231ab53f26, instead resolves surviving events to canonical people and routes them to hash partitions. Each worker groups using exact person bytes, sorts each person's timestamps and walks that list once. DuckDB consumes the labeled Arrow columns directly. Product category lookup occurs for purchases during daily aggregation. B's labeling timer includes native identity routing and Arrow registration; in A, the identity and product joins ran during event validation. The matched end-to-end measurements include all of this work in both releases.
+
+B was clean-built without cache from its Git archive (image 1c4255bb37ac, 492,681,487 bytes). All 36 fixtures passed. The official dev checker matched both output schemas and all 117,038 user/day and 27,400 campaign/day rows, with no duplicate keys. Benchmarks used the unmodified scored image and the clean B image under the existing Linux/amd64 8-CPU, 24-GiB limits. Each pair used the same input volume and fresh scratch; execution order was AB, BA, AB at each scale.
+
+| Practice, seed 23 (20M events, 5M clicks) | A wall | B wall | B labeling | B per-session aggregation |
+|---|---:|---:|---:|---:|
+| Pair 1 | 7.291 s | 5.363 s | 1.091 s | 0.182 s |
+| Pair 2 | 6.844 s | 5.922 s | 1.330 s | 0.198 s |
+| Pair 3 | 6.953 s | 5.175 s | 1.021 s | 0.175 s |
+| Median | 6.953 s | 5.363 s | 1.091 s | 0.182 s |
+
+Practice median elapsed time decreased 22.9%. These are same-day local container timings. The scored control's official hidden practice result was 13.3325 s.
+
+| Final scale, seed 42 (60M events, 15M clicks) | A wall | B wall |
+|---|---:|---:|
+| Pair 1 | 24.016 s | 18.630 s |
+| Pair 2 | 23.207 s | 20.016 s |
+| Pair 3 | 23.263 s | 19.316 s |
+| Median | 23.263 s | 19.316 s |
+
+Final-scale median elapsed time decreased 17.0%. Peak B cgroup usage across those runs was 12,150,829,056 bytes under the 24 GiB limit. Both daily Parquet tables matched in both directions with EXCEPT ALL in all six pairs. Session and revenue reconciliation and campaign assist invariants passed. Separate untimed seed-23 runs exported all intermediate rows. The multiset of (person, session start, cents, category) matched for 19,535,163 labeled events, and the complete per-session table matched for 3,368,309 sessions. The candidate awaits an official score.

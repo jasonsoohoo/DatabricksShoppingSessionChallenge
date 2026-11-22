@@ -21,3 +21,7 @@ Completed the stage profile against the 17.14 s submission. The Rust sweep took 
 ## Native identity resolution
 
 The separate practice profile measured 2.824 s for identity resolution and lookup loading, and 0.239 s for click and dimension CSV preparation. The native resolver reduced the identity median to 0.751 s. End-to-end practice and final-scale medians fell 21.8% and 18.6% against the 15.6507 s release. The complete lookup and both daily tables passed exact comparisons. Official practice fell from 15.6507 s to 13.3325 s. Use the native identity release as the control. Next, profile session labeling and per-session aggregation separately. Their combined stage took a median 3.536 s on local practice, compared with 0.751 s for identity resolution.
+
+## Native session labeling
+
+The session labeler took 2.264 s on local practice versus 0.162 s for per-session aggregation. Native per-person sorting and scanning reduced end-to-end median runtime by 22.9% on practice and 17.0% on final scale. All public checks, the six paired output comparisons and a full practice comparison of the intermediate tables passed. The submission register identifies the verified candidate for the next official measurement.

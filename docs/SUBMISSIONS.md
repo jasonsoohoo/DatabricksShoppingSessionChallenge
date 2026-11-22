@@ -2,7 +2,7 @@
 
 ## Best available submission
 
-**Selected local SHA:** `ae9ec3178f32c82c78e930a3b50944da3dcfc5a8`. The clean build passed 36/36 fixtures and both official dev comparisons. Both complete identity maps and all six pairs of large output tables matched the scored control. Local medians were 11.741 s on practice and 35.892 s on final scale. Its official practice score of 13.3325 s is our best to date.
+**Selected local SHA:** `edd24d4f9f43317c69c33f02416a14231ab53f26`. The clean build passed 36/36 fixtures and both official dev comparisons. Both daily outputs matched the control across all six large pairs. All intermediate labeled-event and session rows also matched on practice. Local medians were 5.363 s on practice and 19.316 s on final scale. Official score pending. The best official practice score remains 13.3325 s for `ae9ec3178f32c82c78e930a3b50944da3dcfc5a8`.
 
 Run `git rev-parse best-verified` for the selected local submission SHA. BENCHMARKS.md records the implementation, local verification and measurements. Each tested implementation remains in the history of main. The development checkout may contain subsequent ledger or benchmark updates.
 
@@ -37,4 +37,5 @@ All revisions below passed the official local fixtures and dev comparison. BENCH
 | eb3762be83c1b0ee58826a8d674070f3a87fcf30 | First official release. Official practice 24.98 s. |
 | c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50 | Native event partitions and Arrow buffers. Official practice score, 17.14 s. |
 | 9776571dedb150b32836d8e0c1a10d547181edb6 | Parallel attribution sweep. Official practice score, 15.6507 s. |
-| ae9ec3178f32c82c78e930a3b50944da3dcfc5a8 | Best verified local release. Native identity resolution. Best official practice score, 13.3325 s. |
+| ae9ec3178f32c82c78e930a3b50944da3dcfc5a8 | Native identity resolution. Best official practice score, 13.3325 s. |
+| edd24d4f9f43317c69c33f02416a14231ab53f26 | Best verified local release. Native session labeling. Awaiting official score. |
