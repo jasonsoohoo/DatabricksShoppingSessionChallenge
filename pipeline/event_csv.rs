@@ -5,7 +5,7 @@ use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
 
 type Fields<'a> = [&'a [u8]; 7];
 
-pub fn visit(job: &(PathBuf, u64, u64), consume: impl FnMut(Fields) -> io::Result<()>) -> io::Result<()> {
+pub fn read(job: &(PathBuf, u64, u64)) -> io::Result<(Vec<u8>, usize)> {
     let (path, begin, limit) = job;
     let mut input = BufReader::new(File::open(path)?);
     let start = begin.saturating_sub(1);
@@ -15,9 +15,12 @@ pub fn visit(job: &(PathBuf, u64, u64), consume: impl FnMut(Fields) -> io::Resul
     if data.last() != Some(&b'\n') {
         input.read_until(b'\n', &mut data)?;
     }
-    let Some(header) = data.iter().position(|&c| c == b'\n') else { return Ok(()) };
+    let first = data.iter().position(|&c| c == b'\n').map_or(data.len(), |i| i + 1);
     if data.last() != Some(&b'\n') { data.push(b'\n'); }
-    let rows = &data[header + 1..];
+    Ok((data, first))
+}
+
+pub fn visit(rows: &[u8], consume: impl FnMut(Fields) -> io::Result<()>) -> io::Result<()> {
     #[cfg(target_arch = "x86_64")]
     if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("popcnt") {
         // Both required CPU features were checked above.
@@ -113,7 +116,8 @@ mod tests {
         for size in [31, 64, 513, data.len()] {
             let mut actual = Vec::new();
             for begin in (0..data.len()).step_by(size) {
-                visit(&(path.clone(), begin as u64, data.len().min(begin + size) as u64),
+                let (bytes, first) = read(&(path.clone(), begin as u64, data.len().min(begin + size) as u64))?;
+                visit(&bytes[first..],
                       |fields| { actual.push(owned(fields)); Ok(()) })?;
             }
             assert_eq!(actual, expected);
