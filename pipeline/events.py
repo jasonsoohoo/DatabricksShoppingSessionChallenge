@@ -11,6 +11,7 @@ class Buffers(ct.Structure):
         ("users", ct.c_void_p), ("user_offsets", ct.c_void_p), ("user_bytes", ct.c_size_t),
         ("products", ct.c_void_p), ("product_offsets", ct.c_void_p), ("product_bytes", ct.c_size_t),
         ("times", ct.c_void_p), ("cents", ct.c_void_p),
+        ("event_counts", ct.c_void_p), ("revenues", ct.c_void_p),
     ]
 
 
@@ -37,7 +38,7 @@ class NativeBatches:
         self.lib.events_open.restype = ct.c_void_p
         self.lib.events_batch.argtypes = [ct.c_void_p, ct.c_size_t, ct.POINTER(Buffers)]
         self.lib.events_batch.restype = None
-        self.lib.events_label.argtypes = [ct.c_void_p, ct.c_void_p, ct.c_size_t]
+        self.lib.events_label.argtypes = [ct.c_void_p, ct.c_void_p, ct.c_size_t, ct.c_bool]
         self.lib.events_label.restype = None
         self.lib.events_close.argtypes = [ct.c_void_p]
         self.lib.events_close.restype = None
@@ -46,7 +47,7 @@ class NativeBatches:
         if getattr(self, "handle", None):
             self.lib.events_close(self.handle)
 
-    def _table(self, names):
+    def _table(self, names, compact=False):
         chunks = []
         for index in range(self.count):
             b = Buffers()
@@ -56,12 +57,16 @@ class NativeBatches:
             def strings(offsets, address, size):
                 return pa.Array.from_buffers(pa.large_string(), b.rows, [
                     None, buffer(offsets, 8 * (b.rows + 1)), buffer(address, size)])
-            chunks.append(pa.record_batch([
+            columns = [
                 strings(b.user_offsets, b.users, b.user_bytes),
                 pa.Array.from_buffers(pa.int64(), b.rows, [None, buffer(b.times, b.rows * 8)]),
                 pa.Array.from_buffers(pa.int32(), b.rows, [None, buffer(b.cents, b.rows * 4)]),
                 strings(b.product_offsets, b.products, b.product_bytes),
-            ], names=names))
+            ]
+            if compact:
+                for address in (b.event_counts, b.revenues):
+                    columns.append(pa.Array.from_buffers(pa.int64(), b.rows, [None, buffer(address, 8 * b.rows)]))
+            chunks.append(pa.record_batch(columns, names=names))
         return pa.Table.from_batches(chunks)
 
 
@@ -75,15 +80,17 @@ class EventBatches(NativeBatches):
         self.count = count.value
         self._exported = False
 
-    def labeled_table(self, people, workers):
+    def labeled_table(self, people, workers, *, compact=False):
         # The Arrow buffers below borrow this handle. Never replace their storage
         # after export, even if a caller retains the EventBatches object.
         if self._exported:
             raise RuntimeError("event batches were already exported")
         self._exported = True
-        self.lib.events_label(self.handle, people.handle, workers)
-
-        return self._table(["person", "begin_ms", "cents", "product"])
+        self.lib.events_label(self.handle, people.handle, workers, compact)
+        names = ["person", "begin_ms", "cents", "product"]
+        if compact:
+            names.extend(["event_count", "session_revenue"])
+        return self._table(names, compact)
 
 
 class ClickBatches(NativeBatches):

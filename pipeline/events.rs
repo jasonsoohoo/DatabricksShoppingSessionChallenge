@@ -129,6 +129,8 @@ struct Batch {
     products: Strings,
     times: Vec<i64>,
     cents: Vec<i32>,
+    event_counts: Vec<i64>,
+    revenues: Vec<i64>,
 }
 
 fn dedup(chunks: &[Vec<Bucket>], partition: usize) -> Batch {
@@ -247,6 +249,8 @@ pub struct Buffers {
     product_bytes: usize,
     times: *const i64,
     cents: *const i32,
+    event_counts: *const i64,
+    revenues: *const i64,
 }
 
 #[unsafe(no_mangle)]
@@ -293,6 +297,8 @@ pub unsafe extern "C" fn events_batch(
             product_bytes: b.products.data.len(),
             times: b.times.as_ptr(),
             cents: b.cents.as_ptr(),
+            event_counts: b.event_counts.as_ptr(),
+            revenues: b.revenues.as_ptr(),
         });
     }
 }

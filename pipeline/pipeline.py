@@ -60,12 +60,12 @@ def run(data, output, work):
     with stage("event dedup and validation"):
         winners = EventBatches(data / "events", start, end, workers)
     with stage("session labeling"):
-        con.register("labeled", winners.labeled_table(people, workers))
+        con.register("labeled", winners.labeled_table(people, workers, compact=True))
     with stage("per-session aggregation"):
         execute("""
         create table sessions as select person, begin_ms, epoch_ms(begin_ms)::date as day,
-          count(*) as events, sum(cents)::bigint as revenue
-          from labeled group by person,begin_ms;
+          event_count as events, session_revenue as revenue
+          from labeled where event_count > 0;
         """)
     execute("""
         create view user_daily as
