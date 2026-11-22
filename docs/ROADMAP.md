@@ -6,7 +6,7 @@
 | M1 correctness | Complete | Both output schemas and every expected row pass the official local fixture and seed-1 dev checkers. |
 | M2 benchmarking | Complete | Four reproducible input scales. Docker entry point reports stage timings, CPU and memory. Local runner records wall time, revision and image size. |
 | M3 optimization | Complete for this candidate | Native CSV and timestamp parsing, bounded event dedup and sliding-window attribution. Recoverable revisions and observed performance in BENCHMARKS.md. |
-| M4 hand-in | Third official practice run scored 15.6507 s | Parallel attribution release passed the official local checks. Three final-scale outputs exactly matched the second submission. Local median 27.912 s. Submission SHA in SUBMISSIONS.md. |
+| M4 hand-in | Fourth official practice run scored 13.3325 s | Native identity release passed the official local checks. Three final-scale outputs exactly matched the third submission. Local median 35.892 s. Submission SHA in SUBMISSIONS.md. |
 
 The owner handles publication and scorer submission. Record each reported official score against its exact SHA, update the best official result, and use the hidden-run timing to prioritize the next experiment. The official dataset, scorer hardware and hidden results are unavailable locally.
 
@@ -20,4 +20,4 @@ Completed the stage profile against the 17.14 s submission. The Rust sweep took 
 
 ## Native identity resolution
 
-The separate practice profile measured 2.824 s for identity resolution and lookup loading, and 0.239 s for click and dimension CSV preparation. The native resolver reduced the identity median to 0.751 s. End-to-end practice and final-scale medians fell 21.8% and 18.6% against the 15.6507 s release. The complete lookup and both daily tables passed exact comparisons. Record the next official practice result against the selected SHA in SUBMISSIONS.md.
+The separate practice profile measured 2.824 s for identity resolution and lookup loading, and 0.239 s for click and dimension CSV preparation. The native resolver reduced the identity median to 0.751 s. End-to-end practice and final-scale medians fell 21.8% and 18.6% against the 15.6507 s release. The complete lookup and both daily tables passed exact comparisons. Official practice fell from 15.6507 s to 13.3325 s. Use the native identity release as the control. Next, profile session labeling and per-session aggregation separately. Their combined stage took a median 3.536 s on local practice, compared with 0.751 s for identity resolution.
