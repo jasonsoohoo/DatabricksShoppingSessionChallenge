@@ -13,3 +13,7 @@ The owner handles publication and scorer submission. Record each reported offici
 ## Native event-ID partition experiment
 
 The experiment replaces the event scratch CSV and DuckDB DISTINCT ON step with in-memory, full-key deduplication and typed Arrow columns. The scored release is the comparison control. The native clean build passed the 36 fixtures and matched both public dev tables. Three local seed-23 runs reduced median wall time from 15.643 s to 10.115 s. Three final-scale runs reduced the median from 48.255 s to 33.265 s. Both large tables matched the scored release in all six comparisons. BENCHMARKS.md records the head-to-head results, including final-scale memory and the large differential comparisons. The official practice result improved from 24.98 s to 17.14 s. Use the 17.14 s release as the next control. Profile the attribution timeline sort, CSV export and Rust sweep separately before choosing which to optimize. Together the clicks and attribution stage took about 2.66 s on local practice.
+
+## Parallel click attribution
+
+Completed the stage profile against the 17.14 s submission. The Rust sweep took 1.476 s of practice wall time, compared with 0.443 s for sort/materialization and 0.199 s for CSV export. Splitting the sweep between people reduced its median to 0.289 s. The new release passed the public checkers and exact comparisons at practice and final scale. Track its official score against the SHA in SUBMISSIONS.md when the owner reports it.

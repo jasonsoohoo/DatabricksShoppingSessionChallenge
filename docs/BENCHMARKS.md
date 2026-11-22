@@ -68,3 +68,45 @@ Practice elapsed time decreased 35.3%. Median event deduplication/validation fel
 Final-scale elapsed time decreased 31.1%. The native partitions use more process memory. The highest B cgroup reading was 12,313,018,368 bytes (11.47 GiB) under the 24 GiB container limit.
 
 For each A/B pair, scripts/check_large.py compared both Parquet tables with bidirectional EXCEPT ALL and checked aggregate invariants. All six comparisons passed. Each practice output counted 3,368,309 sessions and 6,155,929,657 cents; each final output counted 10,067,851 sessions and 20,418,435,163 cents.
+
+## Parallel attribution sweep
+
+The control was c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50 (17.14 s official practice, image dc542f1644c9). Candidate 9776571dedb150b32836d8e0c1a10d547181edb6 changed only the Rust attribution executable source. Image 026dbd050fe8 was built without cache from the candidate Git archive for linux/amd64 (487,562,984 bytes).
+
+For the stage profile, the scored pipeline used a temporary table for the joined clicks and sessions, then materialized the ordered timeline with the production keys (person, timestamp, descending click ID with NULL last). The next timed statement copied its four output columns to CSV. A separate timer surrounded the complete Rust process. This separates wall times that the production COPY query can overlap. Sort timings include materializing the ordered table. The end-to-end comparisons use the original fused COPY path and no profiling wrapper.
+
+| Scored control, seed 23 | Run 1 | Run 2 | Run 3 | Median |
+|---|---:|---:|---:|---:|
+| Join and prepare | 0.627 s | 0.560 s | 0.533 s | 0.560 s |
+| Sort and materialize | 0.443 s | 0.443 s | 0.437 s | 0.443 s |
+| CSV export | 0.203 s | 0.199 s | 0.188 s | 0.199 s |
+| Rust sweep | 1.438 s | 1.489 s | 1.476 s | 1.476 s |
+
+The single-threaded sweep took longest. The candidate splits the sorted timeline at complete person boundaries, schedules those ranges on up to NCPU workers, and merges worker totals by campaign and day. Each worker uses the original seven-day eligibility, winner and assist logic. The clean build passed every official fixture and matched the published dev schemas and all 117,038 user/day and 27,400 campaign/day rows without duplicate keys. The range regression in scripts/test_attribution_ranges.py passed at one and eight workers, including a single person spanning several target boundaries and clicks expiring at seven days plus one millisecond.
+
+| Candidate, same profile and input | Run 1 | Run 2 | Run 3 | Median |
+|---|---:|---:|---:|---:|
+| Join and prepare | 0.682 s | 0.674 s | 0.547 s | 0.674 s |
+| Sort and materialize | 0.506 s | 0.538 s | 0.447 s | 0.506 s |
+| CSV export | 0.265 s | 0.265 s | 0.204 s | 0.265 s |
+| Rust sweep | 0.291 s | 0.289 s | 0.227 s | 0.289 s |
+
+The sweep took 80.4% less wall time (5.1× speedup). End-to-end tests ran sequentially under the standard 8 CPU, 24 GiB Linux container limits. Both images used the same input volume at each scale and fresh scratch space; pair order was AB, BA, AB on both scales. A is the scored control and B is the candidate.
+
+| Local practice, 20M events and 5M clicks | A wall | B wall |
+|---|---:|---:|
+| Pair 1 | 9.943 s | 9.342 s |
+| Pair 2 | 10.270 s | 8.793 s |
+| Pair 3 | 9.761 s | 8.663 s |
+| Median | 9.943 s | 8.793 s |
+
+Practice median elapsed time decreased 11.6%.
+
+| Local final scale, 60M events and 15M clicks | A wall | B wall |
+|---|---:|---:|
+| Pair 1 | 33.593 s | 28.891 s |
+| Pair 2 | 33.354 s | 27.912 s |
+| Pair 3 | 31.711 s | 27.581 s |
+| Median | 33.354 s | 27.912 s |
+
+Final-scale median elapsed time decreased 16.3%. Peak candidate cgroup memory across the final runs was 12,309,655,552 bytes under the 24 GiB limit. Bidirectional EXCEPT ALL comparisons of both Parquet tables and the cross-table accounting checks passed in every pair. Practice totals were 3,368,309 sessions and 6,155,929,657 cents. Final totals were 10,067,851 sessions and 20,418,435,163 cents. The new revision is locally verified and awaits an official score.

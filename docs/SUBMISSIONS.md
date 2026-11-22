@@ -2,7 +2,7 @@
 
 ## Best available submission
 
-**Selected local SHA:** `c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50`. Clean build passed 36/36 fixtures and both official dev tables. Both large tables matched the scored release across all six paired runs. Median local times were 10.115 s on practice and 33.265 s on final scale. Official practice score is 17.14 s, our best to date. The development branch carries the same runtime and the verification ledger.
+**Selected local SHA:** `9776571dedb150b32836d8e0c1a10d547181edb6`. The clean build passed 36/36 fixtures, both official dev comparisons, a person-boundary regression, and both large table comparisons in every paired run. Median practice time was 8.793 s and median final-scale time was 27.912 s. Official score pending. The best official score remains 17.14 s for `c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50`.
 
 Run `git rev-parse best-verified` for the selected local submission SHA. BENCHMARKS.md records the implementation, local verification and measurements. Each tested implementation remains in the history of main. The development checkout may contain subsequent ledger or benchmark updates.
 
@@ -31,4 +31,5 @@ All revisions below passed the official local fixtures and dev comparison. BENCH
 | 9a8ec0b70cf4ff3088a19eb9bfb7fc1a41f0d6b7 | SQL priority aggregation. Slower on final scale. |
 | 108514a89e2489f8d6469623a7c4f46a6a24517c | Sliding-window attribution. Pre-release benchmark. |
 | eb3762be83c1b0ee58826a8d674070f3a87fcf30 | First official release. Official practice 24.98 s. |
-| c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50 | Best verified local release. Native event partitions and Arrow buffers. Best official practice score, 17.14 s. |
+| c19ddd40924f3180f7ef5bb34f61a7bc9dec7f50 | Native event partitions and Arrow buffers. Best official practice score, 17.14 s. |
+| 9776571dedb150b32836d8e0c1a10d547181edb6 | Best verified local release. Parallel attribution sweep. Awaiting official score. |
