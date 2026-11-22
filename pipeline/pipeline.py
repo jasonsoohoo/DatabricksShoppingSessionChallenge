@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 import resource
 import subprocess
 import sys
@@ -27,45 +26,6 @@ def literal(value):
     return "'" + str(value).replace("'", "''") + "'"
 
 
-def records(files, width):
-    field = rb'(?:"[^",\n]*"|[^",\n]*)'
-    pattern = re.compile(field + (b',' + field) * (width - 1))
-    for path in files:
-        with path.open("rb") as source:
-            next(source, None)
-            for line in source:
-                row = line.removesuffix(b"\n")
-                if pattern.fullmatch(row):
-                    yield row
-
-
-def identities(data):
-    parent = {}
-    def root(key):
-        while parent[key] != key:
-            parent[key] = parent[parent[key]]
-            key = parent[key]
-        return key
-
-    for row in records(data.glob("links/*.csv"), 2):
-        a, b = row.replace(b'"', b'').split(b",")
-        if a and b:
-            parent.setdefault(a, a)
-            parent.setdefault(b, b)
-            left, right = sorted((root(a), root(b)))
-            parent[right] = left
-    return ((key, root(key)) for key in parent)
-
-
-def canonical_file(path, rows):
-    with path.open("wb") as target:
-        for row in rows:
-            # Quote every field containing CR so the SQL reader preserves it.
-            if b"\r" in row:
-                row = b",".join(b'"' + f.strip(b'"') + b'"' for f in row.split(b","))
-            target.write(row + b"\n")
-
-
 def relation(path, names):
     columns = ", ".join(f"'{name}':'VARCHAR'" for name in names.split())
     return (f"read_csv({literal(path)}, columns={{{columns}}}, auto_detect=false, "
@@ -83,10 +43,11 @@ def run(data, output, work):
     start, end = [int(datetime.fromisoformat(manifest[k]).timestamp()) * 1000
                   for k in ("window_start", "window_end")]
     execute = con.execute
-    with stage("csv and identity"):
+    with stage("identity resolution and lookup table"):
         path = work / "people.csv"
-        canonical_file(path, (a + b"," + b for a, b in identities(data)))
+        subprocess.run(["/app/identity", data / "links", path], check=True)
         execute("create table people as select * from " + relation(path, "uid person"))
+    with stage("click and dimension CSV preparation"):
         subprocess.run(["/app/clean", data, work], check=True,
                        env=dict(os.environ, WINDOW_START=str(start), WINDOW_END=str(end)))
         for table, fields in {

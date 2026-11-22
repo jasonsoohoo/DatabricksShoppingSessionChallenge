@@ -6,10 +6,14 @@ COPY pipeline/clean.rs pipeline/csv.rs pipeline/events.rs /tmp/
 RUN rustc -O --edition 2024 --crate-type cdylib /tmp/events.rs -o /events.so
 RUN rustc -O --edition 2024 /tmp/clean.rs -o /clean
 
+COPY pipeline/identity.rs /tmp/identity.rs
+RUN rustc -O --edition 2024 /tmp/identity.rs -o /identity
+
 COPY pipeline/attribute.rs /tmp/attribute.rs
 RUN rustc -O --edition 2024 /tmp/attribute.rs -o /attribute
 
 FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df
+COPY --from=compiler /identity /app/identity
 COPY --from=compiler /attribute /app/attribute
 COPY --from=compiler /events.so /app/events.so
 COPY --from=compiler /clean /app/clean
