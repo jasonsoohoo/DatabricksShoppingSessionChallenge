@@ -6,7 +6,7 @@
 | M1 correctness | Complete | Both output schemas and every expected row pass the official local fixture and seed-1 dev checkers. |
 | M2 benchmarking | Complete | Four reproducible input scales. Docker entry point reports stage timings, CPU and memory. Local runner records wall time, revision and image size. |
 | M3 optimization | Complete for this candidate | Native CSV and timestamp parsing, bounded event dedup and sliding-window attribution. Recoverable revisions and observed performance in BENCHMARKS.md. |
-| M4 hand-in | Second official practice run scored 17.14 s | Native release passed both official local checks. Three final-scale outputs exactly matched the first submission. Local median 33.265 s. Submission SHA in SUBMISSIONS.md. |
+| M4 hand-in | Third official practice run scored 15.6507 s | Parallel attribution release passed the official local checks. Three final-scale outputs exactly matched the second submission. Local median 27.912 s. Submission SHA in SUBMISSIONS.md. |
 
 The owner handles publication and scorer submission. Record each reported official score against its exact SHA, update the best official result, and use the hidden-run timing to prioritize the next experiment. The official dataset, scorer hardware and hidden results are unavailable locally.
 
@@ -16,4 +16,4 @@ The experiment replaces the event scratch CSV and DuckDB DISTINCT ON step with i
 
 ## Parallel click attribution
 
-Completed the stage profile against the 17.14 s submission. The Rust sweep took 1.476 s of practice wall time, compared with 0.443 s for sort/materialization and 0.199 s for CSV export. Splitting the sweep between people reduced its median to 0.289 s. The new release passed the public checkers and exact comparisons at practice and final scale. Track its official score against the SHA in SUBMISSIONS.md when the owner reports it.
+Completed the stage profile against the 17.14 s submission. The Rust sweep took 1.476 s of practice wall time, compared with 0.443 s for sort/materialization and 0.199 s for CSV export. Splitting the sweep between people reduced its median to 0.289 s. The new release passed the public checkers and exact comparisons at practice and final scale. Official practice fell from 17.14 s to 15.6507 s. Use the parallel sweep release as the control. Next, time identity resolution and CSV preparation separately. Together they took about 2.5 s on local practice, compared with 0.289 s for the optimized sweep.
